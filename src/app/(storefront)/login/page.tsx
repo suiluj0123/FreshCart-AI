@@ -16,7 +16,7 @@ function LoginForm() {
   const supabase = createClient()
   const redirectTo = searchParams.get('redirectTo') || '/'
 
-  // If already logged in, redirect away
+
   useEffect(() => {
     async function checkSession() {
       const { data: { session } } = await supabase.auth.getSession()
