@@ -22,7 +22,9 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -40,31 +42,147 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
   }, [isOpen])
 
   const resetForm = () => {
-    setEmail(''); setPassword(''); setName(''); setError(null); setSuccess(null)
+    setEmail('')
+    setPassword('')
+    setConfirmPassword('')
+    setName('')
+    setError(null)
+    setSuccess(null)
   }
-  const switchMode = (next: ModalMode) => { resetForm(); setMode(next) }
+
+  const switchMode = (next: ModalMode) => {
+    resetForm()
+    setMode(next)
+  }
+
+  const validateEmail = (val: string) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)
+  }
+
+  const validatePasswordStrength = (pwd: string): string | null => {
+    if (pwd.length < 8) {
+      return 'Password must be at least 8 characters long.'
+    }
+    if (!/[A-Z]/.test(pwd)) {
+      return 'Password must contain at least one uppercase capital letter.'
+    }
+    if (!/[0-9]/.test(pwd)) {
+      return 'Password must contain at least one number.'
+    }
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(pwd)) {
+      return 'Password must contain at least one special character (e.g. !@#$%^&*).'
+    }
+    return null
+  }
 
   const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault(); setError(null); setLoading(true)
+    e.preventDefault()
+    setError(null)
+
+    const cleanEmail = email.trim()
+    if (!cleanEmail) {
+      setError('Email address is required.')
+      return
+    }
+    if (!validateEmail(cleanEmail)) {
+      setError('Please enter a valid email address.')
+      return
+    }
+    if (!password) {
+      setError('Password is required.')
+      return
+    }
+
+    setLoading(true)
     try {
-      const { error: err } = await supabase.auth.signInWithPassword({ email, password })
-      if (err) { setError(err.message); return }
-      router.refresh(); onClose()
-    } catch { setError('An unexpected error occurred.') }
-    finally { setLoading(false) }
+      const { error: err } = await supabase.auth.signInWithPassword({
+        email: cleanEmail,
+        password,
+      })
+
+      if (err) {
+        if (err.message.toLowerCase().includes('invalid login credentials')) {
+          setError('Incorrect email or password. Please verify your credentials.')
+        } else if (err.message.toLowerCase().includes('email not confirmed')) {
+          setError('Please confirm your email address via the link sent to your inbox.')
+        } else {
+          setError(err.message)
+        }
+        return
+      }
+
+      router.refresh()
+      onClose()
+    } catch {
+      setError('An unexpected error occurred during sign in.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault(); setError(null); setLoading(true)
+    e.preventDefault()
+    setError(null)
+
+    const cleanName = name.trim()
+    const cleanEmail = email.trim()
+
+    if (!cleanName) {
+      setError('Full Name is required.')
+      return
+    }
+    if (!cleanEmail) {
+      setError('Email address is required.')
+      return
+    }
+    if (!validateEmail(cleanEmail)) {
+      setError('Please enter a valid email address.')
+      return
+    }
+    if (!password) {
+      setError('Password is required.')
+      return
+    }
+
+    const passwordError = validatePasswordStrength(password)
+    if (passwordError) {
+      setError(passwordError)
+      return
+    }
+
+    if (!confirmPassword) {
+      setError('Please confirm your password.')
+      return
+    }
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match. Please re-type your confirm password.')
+      return
+    }
+
+    setLoading(true)
     try {
       const { error: err } = await supabase.auth.signUp({
-        email, password, options: { data: { name } },
+        email: cleanEmail,
+        password,
+        options: { data: { name: cleanName } },
       })
-      if (err) { setError(err.message); return }
-      setSuccess('Account created! Check your email to confirm, then sign in.')
+
+      if (err) {
+        setError(err.message)
+        return
+      }
+
+      setSuccess('Account created successfully!')
       setMode('login')
-    } catch { setError('An unexpected error occurred.') }
-    finally { setLoading(false) }
+      setPassword('')
+      setConfirmPassword('')
+      setTimeout(() => setSuccess(null), 3000)
+    } catch {
+      setError('An unexpected error occurred during account creation.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleGoogleSignIn = async () => {
@@ -184,57 +302,108 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
 
           {/* Form */}
           <form onSubmit={mode === 'login' ? handleLogin : handleRegister} className="space-y-4">
+            {/* Full Name (Register mode only, NO placeholder) */}
             {mode === 'register' && (
               <div>
-                <label htmlFor="modal-name" className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                <label htmlFor="modal-name" className="block text-sm font-semibold text-gray-700 mb-1">
+                  Full Name <span className="text-red-500">*</span>
+                </label>
                 <input
-                  id="modal-name" type="text" required
-                  value={name} onChange={(e) => setName(e.target.value)}
-                  placeholder="Maria Santos"
-                  className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm placeholder-gray-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                  id="modal-name"
+                  type="text"
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200"
                 />
               </div>
             )}
 
+            {/* Email Address (NO placeholder) */}
             <div>
-              <label htmlFor="modal-email" className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+              <label htmlFor="modal-email" className="block text-sm font-semibold text-gray-700 mb-1">
+                Email Address <span className="text-red-500">*</span>
+              </label>
               <input
-                id="modal-email" type="email" autoComplete="email" required
-                value={email} onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm placeholder-gray-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                id="modal-email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200"
               />
             </div>
 
+            {/* Password */}
             <div>
-              <label htmlFor="modal-password" className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+              <div className="flex items-center justify-between mb-1">
+                <label htmlFor="modal-password" className="block text-sm font-semibold text-gray-700">
+                  Password <span className="text-red-500">*</span>
+                </label>
+                {mode === 'login' && (
+                  <Link href="/forgot-password" className="text-xs font-medium text-emerald-600 hover:text-emerald-700">
+                    Forgot password?
+                  </Link>
+                )}
+              </div>
               <div className="relative">
                 <input
                   id="modal-password"
                   type={showPassword ? 'text' : 'password'}
                   autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
                   required
-                  value={password} onChange={(e) => setPassword(e.target.value)}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter password"
-                  className="w-full rounded-xl border border-gray-300 px-3 py-2.5 pr-16 text-sm placeholder-gray-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                  className="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 pr-16 text-sm placeholder-gray-400 text-gray-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-emerald-600 hover:text-emerald-700"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-emerald-600 hover:text-emerald-700"
                 >
                   {showPassword ? 'Hide' : 'Show'}
                 </button>
               </div>
-              {mode === 'login' && (
-                <div className="mt-1.5 text-right">
-                  <Link href="/forgot-password" className="text-xs text-emerald-600 hover:text-emerald-700">
-                    Forgot password?
-                  </Link>
-                </div>
+
+              {/* Password requirement hint in register mode */}
+              {mode === 'register' && (
+                <p className="mt-1.5 text-xs text-gray-500 leading-normal">
+                  Must be at least 8 characters with 1 capital letter, 1 number, and 1 special character.
+                </p>
               )}
             </div>
 
-            <Button type="submit" variant="primary" size="lg" disabled={loading} className="w-full rounded-xl mt-1">
+            {/* Confirm Password (Register mode only) */}
+            {mode === 'register' && (
+              <div>
+                <label htmlFor="modal-confirm-password" className="block text-sm font-semibold text-gray-700 mb-1">
+                  Confirm Password <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    id="modal-confirm-password"
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    autoComplete="new-password"
+                    required
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Confirm password"
+                    className="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 pr-16 text-sm placeholder-gray-400 text-gray-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword((v) => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-emerald-600 hover:text-emerald-700"
+                  >
+                    {showConfirmPassword ? 'Hide' : 'Show'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <Button type="submit" variant="primary" size="lg" disabled={loading} className="w-full rounded-xl mt-2 font-bold shadow-md">
               {loading
                 ? (mode === 'login' ? 'Signing in...' : 'Creating account...')
                 : (mode === 'login' ? 'Sign In' : 'Create Account')}

@@ -9,18 +9,34 @@ export default async function Navbar() {
   } = await supabase.auth.getUser()
 
   let userProfile: { name: string; email: string } | null = null
+  let activeOrderId: string | null = null
 
   if (authUser) {
     const { data: profile } = await supabase
       .from('User')
-      .select('name, email')
+      .select('id, name, email')
       .eq('authId', authUser.id)
       .single()
 
     userProfile = profile
       ? { name: profile.name ?? '', email: profile.email }
       : { name: authUser.email?.split('@')[0] ?? '', email: authUser.email ?? '' }
+
+    if (profile) {
+      const { data: latestOrder } = await supabase
+        .from('Order')
+        .select('id, status')
+        .eq('userId', profile.id)
+        .neq('status', 'completed')
+        .order('createdAt', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (latestOrder) {
+        activeOrderId = latestOrder.id
+      }
+    }
   }
 
-  return <NavbarClient user={userProfile} />
+  return <NavbarClient user={userProfile} initialActiveOrderId={activeOrderId} />
 }

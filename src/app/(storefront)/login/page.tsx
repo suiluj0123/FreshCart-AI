@@ -27,19 +27,44 @@ function LoginForm() {
     checkSession()
   }, [router, redirectTo, supabase.auth])
 
+  const validateEmail = (val: string) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)
+  }
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+
+    const cleanEmail = email.trim()
+    if (!cleanEmail) {
+      setError('Email address is required.')
+      return
+    }
+    if (!validateEmail(cleanEmail)) {
+      setError('Please enter a valid email address.')
+      return
+    }
+    if (!password) {
+      setError('Password is required.')
+      return
+    }
+
     setLoading(true)
 
     try {
       const { error: loginError } = await supabase.auth.signInWithPassword({
-        email,
+        email: cleanEmail,
         password,
       })
 
       if (loginError) {
-        setError(loginError.message)
+        if (loginError.message.toLowerCase().includes('invalid login credentials')) {
+          setError('Incorrect email or password. Please verify your credentials.')
+        } else if (loginError.message.toLowerCase().includes('email not confirmed')) {
+          setError('Please confirm your email address via the link sent to your inbox.')
+        } else {
+          setError(loginError.message)
+        }
       } else {
         router.push(redirectTo)
         router.refresh()

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/auth/client'
@@ -9,17 +9,93 @@ import LoginModal from '@/components/storefront/LoginModal'
 
 interface NavbarClientProps {
   user: { name: string; email: string } | null
+  initialActiveOrderId?: string | null
 }
 
-export default function NavbarClient({ user }: NavbarClientProps) {
+export default function NavbarClient({ user: initialUser, initialActiveOrderId }: NavbarClientProps) {
   const router = useRouter()
   const supabase = createClient()
-  const { cartCount } = useCartContext()
+  const { cartCount, clearCart } = useCartContext()
+  const [currentUser, setCurrentUser] = useState(initialUser)
   const [loginOpen, setLoginOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
 
+  const [activeOrderId, setActiveOrderId] = useState<string | null>(initialActiveOrderId || null)
+
+  const userEmail = currentUser?.email ?? null
+
+  useEffect(() => {
+    let isMounted = true
+    const checkActiveOrder = async () => {
+      if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem('freshcart_active_order')
+        const targetId = initialActiveOrderId || stored || null
+
+        if (targetId) {
+          const { data: ord } = await supabase
+            .from('Order')
+            .select('status')
+            .eq('id', targetId)
+            .maybeSingle()
+
+          if (isMounted) {
+            if (!ord || ord.status === 'completed') {
+              localStorage.removeItem('freshcart_active_order')
+              setActiveOrderId(null)
+            } else {
+              setActiveOrderId(targetId)
+            }
+          }
+        } else if (isMounted) {
+          setActiveOrderId(null)
+        }
+      }
+    }
+
+    checkActiveOrder()
+    window.addEventListener('storage', checkActiveOrder)
+    window.addEventListener('active_order_updated', checkActiveOrder)
+    return () => {
+      isMounted = false
+      window.removeEventListener('storage', checkActiveOrder)
+      window.removeEventListener('active_order_updated', checkActiveOrder)
+    }
+  }, [initialActiveOrderId, userEmail])
+
+  useEffect(() => {
+    setCurrentUser(initialUser)
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user) {
+        const { data: profile } = await supabase
+          .from('User')
+          .select('name, email')
+          .eq('authId', session.user.id)
+          .single()
+
+        setCurrentUser({
+          name: profile?.name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || '',
+          email: profile?.email || session.user.email || '',
+        })
+      } else if (event === 'SIGNED_OUT' || !session) {
+        setCurrentUser(null)
+        setActiveOrderId(null)
+      }
+    })
+
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [initialUser])
+
   const handleSignOut = async () => {
     await supabase.auth.signOut()
+    setCurrentUser(null)
+    setActiveOrderId(null)
+    setMenuOpen(false)
+    router.push('/')
     router.refresh()
   }
 
@@ -76,6 +152,20 @@ export default function NavbarClient({ user }: NavbarClientProps) {
             {/* Right side */}
             <div className="flex items-center gap-2">
 
+              {/* Active Order Button */}
+              {activeOrderId && (
+                <Link
+                  href={`/orders/${activeOrderId}`}
+                  className="relative flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-800 hover:bg-amber-100 transition-colors border border-amber-200/80 shadow-sm"
+                >
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                  </span>
+                  <span>My Order</span>
+                </Link>
+              )}
+
               {/* Cart */}
               <Link
                 href="/cart"
@@ -96,17 +186,17 @@ export default function NavbarClient({ user }: NavbarClientProps) {
               <div className="hidden sm:block h-6 w-px bg-gray-200" />
 
               {/* Auth */}
-              {user ? (
+              {currentUser ? (
                 <div className="relative">
                   <button
                     onClick={() => setMenuOpen((v) => !v)}
-                    className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                    className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
                   >
                     <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-600 text-white font-bold text-sm shadow-sm">
-                      {user.name?.charAt(0).toUpperCase() || user.email.charAt(0).toUpperCase()}
+                      {currentUser.name?.charAt(0).toUpperCase() || currentUser.email.charAt(0).toUpperCase()}
                     </div>
                     <span className="hidden sm:inline text-gray-700">
-                      Hi, <span className="font-semibold">{user.name?.split(' ')[0] || 'there'}</span>!
+                      Hi, <span className="font-semibold">{currentUser.name?.split(' ')[0] || 'there'}</span>!
                     </span>
                     <svg className="h-3.5 w-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -119,7 +209,7 @@ export default function NavbarClient({ user }: NavbarClientProps) {
                       <div className="absolute right-0 top-full z-20 mt-2 w-52 rounded-xl bg-white py-1.5 shadow-xl border border-gray-100 ring-1 ring-black/5">
                         <div className="px-4 py-2 border-b border-gray-50">
                           <p className="text-xs text-gray-400">Signed in as</p>
-                          <p className="text-sm font-semibold text-gray-800 truncate">{user.email}</p>
+                          <p className="text-sm font-semibold text-gray-800 truncate">{currentUser.email}</p>
                         </div>
                         <Link href="/account" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
                           <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
@@ -130,7 +220,7 @@ export default function NavbarClient({ user }: NavbarClientProps) {
                           My Orders
                         </Link>
                         <hr className="my-1 border-gray-100" />
-                        <button onClick={handleSignOut} className="flex w-full items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50">
+                        <button onClick={handleSignOut} className="flex w-full items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 cursor-pointer">
                           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
                           Sign Out
                         </button>
@@ -141,7 +231,7 @@ export default function NavbarClient({ user }: NavbarClientProps) {
               ) : (
                 <button
                   onClick={() => setLoginOpen(true)}
-                  className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 active:bg-emerald-800 transition-colors"
+                  className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 active:bg-emerald-800 transition-colors cursor-pointer"
                 >
                   Sign In
                 </button>
