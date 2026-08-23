@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/auth/server'
+﻿import { createClient } from '@/lib/auth/server'
 import NavbarClient from '@/components/storefront/NavbarClient'
 
 export default async function Navbar() {
@@ -8,7 +8,7 @@ export default async function Navbar() {
     data: { user: authUser },
   } = await supabase.auth.getUser()
 
-  let userProfile: { name: string; email: string } | null = null
+  let userProfile: { id: string; name: string; email: string } | null = null
   let activeOrderId: string | null = null
 
   if (authUser) {
@@ -19,8 +19,8 @@ export default async function Navbar() {
       .single()
 
     userProfile = profile
-      ? { name: profile.name ?? '', email: profile.email }
-      : { name: authUser.email?.split('@')[0] ?? '', email: authUser.email ?? '' }
+      ? { id: authUser.id, name: profile.name ?? '', email: profile.email }
+      : { id: authUser.id, name: authUser.email?.split('@')[0] ?? '', email: authUser.email ?? '' }
 
     if (profile) {
       const { data: latestOrder } = await supabase

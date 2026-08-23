@@ -1,7 +1,7 @@
 import { CartProvider } from '@/components/storefront/CartProvider'
 import Navbar from '@/components/storefront/Navbar'
 
-export default function StorefrontLayout({ children }: LayoutProps<'/'>) {
+export default function StorefrontLayout({ children }: { children: React.ReactNode }) {
   return (
     <CartProvider>
       <Navbar />

@@ -1,4 +1,4 @@
-'use client'
+﻿﻿'use client'
 
 import React, { useState, useEffect, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -21,6 +21,8 @@ function CheckoutContent() {
     zip: '',
     paymentMethod: 'cod' as 'cod' | 'card',
   })
+  const [saveToProfile, setSaveToProfile] = useState(true)
+  const [autoFilled, setAutoFilled] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -30,15 +32,64 @@ function CheckoutContent() {
   const grandTotal = cartTotal + deliveryFee
 
   useEffect(() => {
-    async function checkAuth() {
+    async function checkAuthAndLoadProfile() {
       const { createClient } = await import('@/lib/auth/client')
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
+
       if (!user) {
         router.push('/cart')
+        return
+      }
+
+      let savedName = ''
+      let savedPhone = ''
+      let savedAddress = ''
+      let savedZip = ''
+
+      // 1. Try local storage cache
+      if (typeof window !== 'undefined') {
+        try {
+          const cachedRaw = localStorage.getItem(`freshcart_customer_profile_${user.id}`)
+          if (cachedRaw) {
+            const cached = JSON.parse(cachedRaw)
+            savedName = cached.fullName || ''
+            savedPhone = cached.phone || ''
+            savedAddress = cached.address || ''
+            savedZip = cached.zip || ''
+          }
+        } catch (e) {}
+      }
+
+      // 2. Try Supabase DB
+      const { data: profile } = await supabase
+        .from('User')
+        .select('*')
+        .eq('authId', user.id)
+        .maybeSingle()
+
+      if (profile) {
+        savedName = profile.name || savedName || user.user_metadata?.name || user.email?.split('@')[0] || ''
+        savedPhone = profile.phone || savedPhone || ''
+        savedAddress = profile.address || savedAddress || ''
+        savedZip = profile.zip || savedZip || ''
+      }
+
+      setFormData((prev) => ({
+        ...prev,
+        fullName: savedName || user.user_metadata?.name || user.email?.split('@')[0] || '',
+        email: profile?.email || user.email || '',
+        phone: savedPhone,
+        address: savedAddress,
+        zip: savedZip,
+      }))
+
+      if (savedName || savedAddress || savedPhone || savedZip) {
+        setAutoFilled(true)
       }
     }
-    checkAuth()
+
+    checkAuthAndLoadProfile()
   }, [router])
 
   useEffect(() => {
@@ -65,6 +116,49 @@ function CheckoutContent() {
     submittingRef.current = true
 
     try {
+      const { createClient } = await import('@/lib/auth/client')
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+
+      // Save to localStorage cache & Supabase DB if saveToProfile is enabled
+      if (user && saveToProfile) {
+        const profileObj = {
+          fullName: formData.fullName.trim(),
+          email: formData.email.trim(),
+          phone: formData.phone.trim(),
+          address: formData.address.trim(),
+          zip: formData.zip.trim(),
+        }
+
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(`freshcart_customer_profile_${user.id}`, JSON.stringify(profileObj))
+        }
+
+        try {
+          const { error: err1 } = await supabase
+            .from('User')
+            .update({
+              name: formData.fullName.trim(),
+              phone: formData.phone.trim(),
+              address: formData.address.trim(),
+              zip: formData.zip.trim(),
+            })
+            .eq('authId', user.id)
+
+          if (err1) {
+            await supabase
+              .from('User')
+              .update({
+                name: formData.fullName.trim(),
+                zip: formData.zip.trim(),
+              })
+              .eq('authId', user.id)
+          }
+        } catch (dbErr) {
+          console.warn('[Checkout] Supabase User update fallback:', dbErr)
+        }
+      }
+
       const response = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -94,6 +188,17 @@ function CheckoutContent() {
 
       if (typeof window !== 'undefined') {
         localStorage.setItem('freshcart_active_order', data.orderId)
+        if (user) {
+          const historyKey = `freshcart_order_history_${user.id}`
+          try {
+            const historyRaw = localStorage.getItem(historyKey)
+            const historyList: string[] = historyRaw ? JSON.parse(historyRaw) : []
+            if (!historyList.includes(data.orderId)) {
+              historyList.push(data.orderId)
+              localStorage.setItem(historyKey, JSON.stringify(historyList))
+            }
+          } catch (e) {}
+        }
         window.dispatchEvent(new Event('active_order_updated'))
       }
       clearCart()
@@ -110,43 +215,59 @@ function CheckoutContent() {
   return (
     <div className="min-h-screen bg-gray-50 py-10">
       <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-        <div className="mb-6 flex items-center gap-2 text-sm text-gray-500">
-          <Link href="/cart" className="hover:text-emerald-700">Cart</Link>
-          <span>/</span>
-          <span className="font-semibold text-gray-900">Checkout</span>
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-extrabold text-gray-900">Checkout</h1>
+            <p className="text-sm text-gray-500 mt-1">Review your order details and delivery info</p>
+          </div>
+          <Link
+            href="/cart"
+            className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 transition-colors"
+          >
+            ← Back to Cart
+          </Link>
         </div>
 
-        <h1 className="text-3xl font-extrabold text-gray-900 mb-8">Checkout</h1>
-
         {error && (
-          <div className="mb-6 rounded-xl bg-red-50 p-4 text-sm font-medium text-red-700 border border-red-200">
-            {error}
+          <div className="mb-6 rounded-2xl bg-red-50 p-4 border border-red-200 text-sm text-red-700">
+            ⚠️ {error}
+          </div>
+        )}
+
+        {autoFilled && (
+          <div className="mb-6 flex items-center justify-between rounded-2xl bg-emerald-50 p-4 border border-emerald-200 text-xs text-emerald-800">
+            <span className="font-semibold">
+              ✓ Contact & delivery details auto-filled from your saved profile!
+            </span>
+            <Link href="/account" className="font-bold underline hover:text-emerald-900">
+              Edit Profile
+            </Link>
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* Customer & Shipping Details */}
+          {/* Main Form Fields */}
           <div className="lg:col-span-7 space-y-6">
-            {/* Fulfillment Selector */}
-            <div className="rounded-2xl bg-white p-6 border border-gray-100 shadow-sm">
-              <h2 className="text-lg font-bold text-gray-900 mb-4">1. Fulfillment Method</h2>
-              <div className="grid grid-cols-2 gap-3">
+            {/* Fulfillment Type */}
+            <div className="rounded-2xl bg-white p-6 border border-gray-100 shadow-sm space-y-4">
+              <h2 className="text-lg font-bold text-gray-900">1. Fulfillment Method</h2>
+              <div className="grid grid-cols-2 gap-4">
                 <button
                   type="button"
                   onClick={() => setFulfillmentType('delivery')}
-                  className={`p-4 rounded-xl text-left border transition-all ${
+                  className={`p-4 rounded-xl border text-left transition-all ${
                     fulfillmentType === 'delivery'
                       ? 'border-emerald-600 bg-emerald-50 text-emerald-900 ring-2 ring-emerald-600/20'
                       : 'border-gray-200 text-gray-600 hover:bg-gray-50'
                   }`}
                 >
-                  <div className="font-bold text-sm">🚚 Delivery</div>
-                  <div className="text-xs text-gray-500 mt-1">Direct to your home (+₱50)</div>
+                  <div className="font-bold text-sm">🚀 Home Delivery</div>
+                  <div className="text-xs text-gray-500 mt-1">Delivered to your door (+₱50)</div>
                 </button>
                 <button
                   type="button"
                   onClick={() => setFulfillmentType('pickup')}
-                  className={`p-4 rounded-xl text-left border transition-all ${
+                  className={`p-4 rounded-xl border text-left transition-all ${
                     fulfillmentType === 'pickup'
                       ? 'border-emerald-600 bg-emerald-50 text-emerald-900 ring-2 ring-emerald-600/20'
                       : 'border-gray-200 text-gray-600 hover:bg-gray-50'
@@ -160,7 +281,13 @@ function CheckoutContent() {
 
             {/* Contact Details */}
             <div className="rounded-2xl bg-white p-6 border border-gray-100 shadow-sm space-y-4">
-              <h2 className="text-lg font-bold text-gray-900">2. Customer Details</h2>
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-bold text-gray-900">2. Customer Details</h2>
+                <Link href="/account" className="text-xs text-emerald-600 hover:underline">
+                  Manage Saved Profile
+                </Link>
+              </div>
+
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1">Full Name *</label>
                 <input
@@ -218,76 +345,80 @@ function CheckoutContent() {
                       value={formData.zip}
                       onChange={(e) => setFormData({ ...formData, zip: e.target.value })}
                       className="w-full rounded-xl border border-gray-200 px-3.5 py-2 text-sm focus:border-emerald-500 focus:outline-none"
-                      placeholder="1000"
+                      placeholder="1634"
                     />
                   </div>
                 </>
               )}
+
+              <div className="pt-2">
+                <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={saveToProfile}
+                    onChange={(e) => setSaveToProfile(e.target.checked)}
+                    className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                  />
+                  <span>Save as default delivery address & contact info in my profile</span>
+                </label>
+              </div>
             </div>
 
             {/* Payment Method */}
-            <div className="rounded-2xl bg-white p-6 border border-gray-100 shadow-sm">
-              <h2 className="text-lg font-bold text-gray-900 mb-4">3. Payment Method</h2>
+            <div className="rounded-2xl bg-white p-6 border border-gray-100 shadow-sm space-y-4">
+              <h2 className="text-lg font-bold text-gray-900">3. Payment Option</h2>
               <div className="space-y-3">
-                <label className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 cursor-pointer hover:bg-gray-50">
-                  <input
-                    type="radio"
-                    name="payment"
-                    value="cod"
-                    checked={formData.paymentMethod === 'cod'}
-                    onChange={() => setFormData({ ...formData, paymentMethod: 'cod' })}
-                    className="h-4 w-4 text-emerald-600 focus:ring-emerald-500"
-                  />
-                  <div>
-                    <span className="font-bold text-sm text-gray-900">Cash on Delivery / Pickup</span>
-                    <p className="text-xs text-gray-500">Pay when your order arrives or upon pickup</p>
+                <label className="flex items-center justify-between rounded-xl border border-emerald-600 bg-emerald-50/50 p-4 cursor-pointer">
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="radio"
+                      name="payment"
+                      checked={formData.paymentMethod === 'cod'}
+                      onChange={() => setFormData({ ...formData, paymentMethod: 'cod' })}
+                      className="h-4 w-4 text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <div>
+                      <span className="text-sm font-bold text-gray-900 block">Cash on Delivery / Pickup</span>
+                      <span className="text-xs text-gray-500">Pay cash upon arrival of your groceries</span>
+                    </div>
                   </div>
-                </label>
-                <label className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 cursor-pointer hover:bg-gray-50">
-                  <input
-                    type="radio"
-                    name="payment"
-                    value="card"
-                    checked={formData.paymentMethod === 'card'}
-                    onChange={() => setFormData({ ...formData, paymentMethod: 'card' })}
-                    className="h-4 w-4 text-emerald-600 focus:ring-emerald-500"
-                  />
-                  <div>
-                    <span className="font-bold text-sm text-gray-900">Credit / Debit Card (Test Mode)</span>
-                    <p className="text-xs text-gray-500">Stripe card test integration</p>
-                  </div>
+                  <span className="text-lg">💵</span>
                 </label>
               </div>
             </div>
           </div>
 
-          {/* Order Summary & Submit */}
+          {/* Sidebar Summary */}
           <div className="lg:col-span-5">
-            <div className="rounded-2xl bg-white p-6 border border-gray-100 shadow-sm sticky top-24">
-              <h2 className="text-lg font-bold text-gray-900 mb-4">Order Items</h2>
+            <div className="rounded-2xl bg-white p-6 border border-gray-100 shadow-sm sticky top-24 space-y-4">
+              <h2 className="text-lg font-bold text-gray-900 border-b border-gray-100 pb-4">
+                Order Items ({items.length})
+              </h2>
 
-              <div className="max-h-60 overflow-y-auto space-y-3 mb-6 pr-1">
+              <div className="max-h-60 overflow-y-auto space-y-3 divide-y divide-gray-50 pr-1">
                 {items.map((item) => (
-                  <div key={item.id} className="flex justify-between items-center text-sm">
-                    <div>
-                      <p className="font-semibold text-gray-900">{item.name}</p>
-                      <p className="text-xs text-gray-400">Qty: {item.quantity}</p>
+                  <div key={item.id} className="pt-3 flex items-center justify-between text-xs">
+                    <div className="truncate pr-2">
+                      <span className="font-bold text-gray-900 block truncate">{item.name}</span>
+                      <span className="text-gray-400">Qty: {item.quantity} × ₱{item.price.toFixed(2)}</span>
                     </div>
-                    <span className="font-bold text-gray-700">
-                      ₱{(item.price * item.quantity).toFixed(2)}
+                    <span className="font-extrabold text-gray-900 shrink-0">
+                      ₱{(item.quantity * item.price).toFixed(2)}
                     </span>
                   </div>
                 ))}
               </div>
 
-              <div className="space-y-2 text-sm border-t border-gray-100 pt-4 mb-6">
+              <div className="space-y-2 text-xs border-t border-gray-100 pt-4">
                 <div className="flex justify-between text-gray-600">
                   <span>Subtotal</span>
-                  <span>₱{cartTotal.toFixed(2)}</span>
+                  <span className="font-semibold">₱{cartTotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-gray-600">
                   <span>Fulfillment</span>
-                  <span>{deliveryFee > 0 ? `₱${deliveryFee.toFixed(2)}` : 'Free'}</span>
+                  <span className="font-semibold">
+                    {deliveryFee > 0 ? `₱${deliveryFee.toFixed(2)}` : 'Free'}
+                  </span>
                 </div>
                 <div className="flex justify-between text-base font-extrabold text-gray-900 border-t border-gray-100 pt-3">
                   <span>Grand Total</span>
@@ -298,9 +429,9 @@ function CheckoutContent() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full rounded-xl bg-emerald-600 py-3.5 px-4 text-sm font-bold text-white shadow-sm hover:bg-emerald-700 active:bg-emerald-800 disabled:opacity-50 transition-colors"
+                className="w-full rounded-xl bg-emerald-600 py-3.5 px-4 text-sm font-bold text-white shadow-sm hover:bg-emerald-700 active:bg-emerald-800 disabled:opacity-50 transition-colors cursor-pointer"
               >
-                {loading ? 'Processing Order...' : 'Place Order Now'}
+                {loading ? 'Processing Order...' : 'Place Order Now →'}
               </button>
             </div>
           </div>
@@ -312,7 +443,7 @@ function CheckoutContent() {
 
 export default function CheckoutPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center">Loading checkout...</div>}>
+    <Suspense fallback={<div className="p-8 text-center text-sm text-gray-500">Loading Checkout...</div>}>
       <CheckoutContent />
     </Suspense>
   )

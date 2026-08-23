@@ -1,4 +1,4 @@
-import React from 'react'
+﻿﻿import React from 'react'
 import { createClient } from '@/lib/auth/server'
 import { redirect } from 'next/navigation'
 
@@ -39,7 +39,7 @@ export default async function AdminDashboardPage() {
             <pre className="bg-gray-50 dark:bg-gray-900 p-4 rounded text-xs text-gray-850 dark:text-gray-200 overflow-x-auto">
               {JSON.stringify(
                 {
-                  authId: user.id,
+                  clerkId: user.id,
                   email: user.email,
                   profileName: profile?.name,
                   role: profile?.role,

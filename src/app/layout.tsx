@@ -18,7 +18,7 @@ export const metadata: Metadata = {
     'AI-powered grocery delivery with personalized meal planning. Fresh local ingredients delivered to your door across Metro Manila.',
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
       lang="en"

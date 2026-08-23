@@ -99,12 +99,20 @@ export default function CartPage() {
           <p className="text-sm text-gray-500 mb-6">
             Looks like you haven&apos;t added any groceries or meal kits yet.
           </p>
-          <Link
-            href="/products"
-            className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-6 py-3 text-sm font-bold text-white shadow-sm hover:bg-emerald-700 transition-colors"
-          >
-            Browse Products
-          </Link>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Link
+              href="/products"
+              className="inline-flex items-center justify-center rounded-xl bg-emerald-600 py-3 px-6 text-sm font-bold text-white shadow-sm hover:bg-emerald-700 transition-colors"
+            >
+              Shop Groceries →
+            </Link>
+            <Link
+              href="/meal-kits"
+              className="inline-flex items-center justify-center rounded-xl bg-gray-100 py-3 px-6 text-sm font-bold text-gray-700 hover:bg-gray-200 transition-colors"
+            >
+              Browse Meal Kits 🍲
+            </Link>
+          </div>
         </div>
       </div>
     )
@@ -112,17 +120,17 @@ export default function CartPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 py-10">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mb-8 flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-extrabold text-gray-900">Shopping Cart</h1>
+            <h1 className="text-3xl font-extrabold text-gray-900">Your Cart</h1>
             <p className="text-sm text-gray-500 mt-1">
-              {items.length} item{items.length === 1 ? '' : 's'} in your cart
+              {items.length} item{items.length === 1 ? '' : 's'} in your grocery basket
             </p>
           </div>
           <button
             onClick={clearCart}
-            className="text-xs font-semibold text-red-600 hover:text-red-700 transition-colors"
+            className="text-xs text-red-500 hover:text-red-700 font-semibold cursor-pointer transition-colors"
           >
             Clear All
           </button>
@@ -152,8 +160,15 @@ export default function CartPage() {
 
                 {/* Info */}
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-bold text-gray-900 truncate text-base">{item.name}</h3>
-                  <p className="text-xs text-gray-400">₱{item.price.toFixed(2)} / {item.unit}</p>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-gray-900 truncate text-base">{item.name}</h3>
+                  </div>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-xs text-gray-400">₱{item.price.toFixed(2)} / {item.unit || 'unit'}</span>
+                    <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200">
+                      ✓ In Stock (FIFO Fresh)
+                    </span>
+                  </div>
                   <p className="text-sm font-extrabold text-emerald-700 mt-1">
                     ₱{(item.price * item.quantity).toFixed(2)}
                   </p>
@@ -163,7 +178,7 @@ export default function CartPage() {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors font-bold text-sm"
+                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors font-bold text-sm cursor-pointer"
                   >
                     −
                   </button>
@@ -172,7 +187,7 @@ export default function CartPage() {
                   </span>
                   <button
                     onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors font-bold text-sm"
+                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors font-bold text-sm cursor-pointer"
                   >
                     +
                   </button>
@@ -181,7 +196,7 @@ export default function CartPage() {
                 {/* Delete */}
                 <button
                   onClick={() => removeItem(item.id)}
-                  className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                  className="p-2 text-gray-400 hover:text-red-500 transition-colors cursor-pointer"
                   aria-label="Remove item"
                 >
                   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -190,35 +205,50 @@ export default function CartPage() {
                 </button>
               </div>
             ))}
+
+            {/* Quick Helper Banner */}
+            <div className="rounded-2xl bg-emerald-50 p-4 border border-emerald-200 flex items-center justify-between text-xs text-emerald-800">
+              <div className="flex items-center gap-2">
+                <span>🌱</span>
+                <span className="font-semibold">
+                  All perishable produce & meats are packed cold and sourced from local farmers.
+                </span>
+              </div>
+              <Link href="/products" className="font-bold underline hover:text-emerald-950 shrink-0 ml-2">
+                + Add More
+              </Link>
+            </div>
           </div>
 
           {/* Summary Panel */}
           <div className="lg:col-span-4">
-            <div className="rounded-2xl bg-white p-6 border border-gray-100 shadow-sm sticky top-24">
-              <h2 className="text-lg font-bold text-gray-900 mb-4">Order Summary</h2>
+            <div className="rounded-2xl bg-white p-6 border border-gray-100 shadow-sm sticky top-24 space-y-4">
+              <h2 className="text-lg font-bold text-gray-900 border-b border-gray-100 pb-3">Order Summary</h2>
 
               {/* Delivery vs Pickup Toggle */}
-              <div className="mb-6">
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
                   Fulfillment Method
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   <button
+                    type="button"
                     onClick={() => setFulfillmentType('delivery')}
-                    className={`py-2 px-3 rounded-xl text-xs font-bold border transition-colors ${
+                    className={`rounded-xl py-2.5 px-3 text-xs font-bold transition-all ${
                       fulfillmentType === 'delivery'
-                        ? 'border-emerald-600 bg-emerald-50 text-emerald-700'
-                        : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                        ? 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-600/20'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                     }`}
                   >
                     🚀 Delivery (+₱50)
                   </button>
                   <button
+                    type="button"
                     onClick={() => setFulfillmentType('pickup')}
-                    className={`py-2 px-3 rounded-xl text-xs font-bold border transition-colors ${
+                    className={`rounded-xl py-2.5 px-3 text-xs font-bold transition-all ${
                       fulfillmentType === 'pickup'
-                        ? 'border-emerald-600 bg-emerald-50 text-emerald-700'
-                        : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                        ? 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-600/20'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                     }`}
                   >
                     🏪 Pickup (Free)
@@ -226,24 +256,25 @@ export default function CartPage() {
                 </div>
               </div>
 
-              {/* Subtotal calculation */}
-              <div className="space-y-3 text-sm border-t border-gray-100 pt-4 mb-6">
+              {/* Price Breakdown */}
+              <div className="space-y-2 text-xs border-t border-gray-100 pt-3">
                 <div className="flex justify-between text-gray-600">
                   <span>Subtotal</span>
                   <span className="font-semibold">₱{cartTotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-gray-600">
-                  <span>Fulfillment</span>
+                  <span>Estimated Delivery</span>
                   <span className="font-semibold">
                     {deliveryFee > 0 ? `₱${deliveryFee.toFixed(2)}` : 'Free'}
                   </span>
                 </div>
                 <div className="flex justify-between text-base font-extrabold text-gray-900 border-t border-gray-100 pt-3">
-                  <span>Total</span>
+                  <span>Grand Total</span>
                   <span className="text-emerald-700">₱{grandTotal.toFixed(2)}</span>
                 </div>
               </div>
 
+              {/* Checkout Button */}
               <Link
                 href={`/checkout?type=${fulfillmentType}`}
                 className="w-full inline-flex items-center justify-center rounded-xl bg-emerald-600 py-3.5 px-4 text-sm font-bold text-white shadow-sm hover:bg-emerald-700 active:bg-emerald-800 transition-colors"

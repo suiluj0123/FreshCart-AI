@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
+﻿﻿import { createClient } from '@supabase/supabase-js'
 import type { CreateOrderPayload } from '@/types/cart'
 
 function getAdminClient() {
@@ -39,12 +39,25 @@ export async function createOrderInDb(payload: CreateOrderPayload) {
   const orderInsertData: any = {
     fulfillmentType: payload.fulfillmentType,
     total: payload.total,
-    deliveryZip: payload.deliveryZip || null,
+    deliveryZip: payload.deliveryZip ? payload.deliveryZip.trim().slice(0, 20) : null,
     status: 'placed',
   }
 
   if (orderUserId) {
     orderInsertData.userId = orderUserId
+
+    // Save and sync customer details to User profile for future checkouts
+    if (payload.customerDetails) {
+      await supabase
+        .from('User')
+        .update({
+          name: payload.customerDetails.fullName.trim(),
+          phone: payload.customerDetails.phone.trim(),
+          address: payload.customerDetails.address.trim(),
+          zip: payload.deliveryZip ? payload.deliveryZip.trim() : null,
+        })
+        .eq('id', orderUserId)
+    }
   }
 
   const { data: order, error: orderError } = await supabase
@@ -145,38 +158,105 @@ export async function getOrderById(orderId: string) {
     }
   }
 
-  const { data: items } = await supabase
+  const { data: rawItems } = await supabase
     .from('OrderItem')
     .select('id, productId, quantity, priceAtOrder, wasSubstituted, Product(id, name, unit, imageUrl, category)')
     .eq('orderId', orderId)
 
-  let userDetails: { name: string; email: string } | null = null
+  let items: any[] = rawItems ?? []
+
+  // Fallback: If Product relation missing on any item, fetch products explicitly
+  if (items.some((item) => !item.Product)) {
+    const productIds = items.map((i) => i.productId).filter(Boolean)
+    if (productIds.length > 0) {
+      const { data: products } = await supabase
+        .from('Product')
+        .select('id, name, unit, imageUrl, category')
+        .in('id', productIds)
+
+      if (products) {
+        const prodMap = new Map(products.map((p) => [p.id, p]))
+        items = items.map((item) => ({
+          ...item,
+          Product: item.Product || prodMap.get(item.productId) || null,
+        }))
+      }
+    }
+  }
+
+  let userDetails: { name: string; email: string; address?: string; phone?: string } | null = null
   if (order.userId) {
     const { data: user } = await supabase
       .from('User')
-      .select('name, email')
+      .select('name, email, phone, address, zip')
       .eq('id', order.userId)
       .single()
     if (user) {
-      userDetails = { name: user.name ?? '', email: user.email }
+      userDetails = {
+        name: user.name ?? '',
+        email: user.email,
+        address: (user as any).address || user.zip || '',
+        phone: (user as any).phone || '',
+      }
     }
   }
 
   return {
     ...order,
-    items: items ?? [],
+    items,
     user: userDetails,
   }
 }
 
-export async function getOrdersByUserId(userId: string) {
+export async function getOrdersByUserId(userId: string, alternateIds: string[] = []) {
   const supabase = getAdminClient()
+
+  const allUserIds = Array.from(new Set([userId, ...alternateIds].filter(Boolean)))
 
   const { data: orders } = await supabase
     .from('Order')
-    .select('id, status, fulfillmentType, total, deliveryZip, createdAt')
-    .eq('userId', userId)
+    .select('id, userId, status, fulfillmentType, total, deliveryZip, createdAt')
+    .in('userId', allUserIds)
     .order('createdAt', { ascending: false })
 
-  return orders ?? []
+  if (!orders || orders.length === 0) return []
+
+  const orderIds = orders.map((o) => o.id)
+
+  const { data: rawItems } = await supabase
+    .from('OrderItem')
+    .select('id, orderId, productId, quantity, priceAtOrder, wasSubstituted, Product(id, name, unit, imageUrl, category)')
+    .in('orderId', orderIds)
+
+  let items: any[] = rawItems ?? []
+
+  if (items.some((item) => !item.Product)) {
+    const productIds = items.map((i) => i.productId).filter(Boolean)
+    if (productIds.length > 0) {
+      const { data: products } = await supabase
+        .from('Product')
+        .select('id, name, unit, imageUrl, category')
+        .in('id', productIds)
+
+      if (products) {
+        const prodMap = new Map(products.map((p) => [p.id, p]))
+        items = items.map((item) => ({
+          ...item,
+          Product: item.Product || prodMap.get(item.productId) || null,
+        }))
+      }
+    }
+  }
+
+  const itemsByOrder = new Map<string, any[]>()
+  for (const item of items) {
+    const list = itemsByOrder.get(item.orderId) || []
+    list.push(item)
+    itemsByOrder.set(item.orderId, list)
+  }
+
+  return orders.map((order) => ({
+    ...order,
+    items: itemsByOrder.get(order.id) || [],
+  }))
 }

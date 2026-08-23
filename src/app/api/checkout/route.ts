@@ -1,4 +1,4 @@
-﻿import { NextResponse } from 'next/server'
+﻿﻿import { NextResponse } from 'next/server'
 import { createOrderInDb } from '@/lib/db/orders'
 import type { CreateOrderPayload } from '@/types/cart'
 import { createClient } from '@/lib/auth/server'
