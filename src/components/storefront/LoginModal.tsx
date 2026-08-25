@@ -9,16 +9,23 @@ import Button from '@/components/ui/Button'
 interface LoginModalProps {
   isOpen: boolean
   onClose: () => void
+  initialMode?: 'login' | 'register'
 }
 
 type ModalMode = 'login' | 'register'
 
-export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
+export default function LoginModal({ isOpen, onClose, initialMode = 'login' }: LoginModalProps) {
   const router = useRouter()
   const supabase = createClient()
   const panelRef = useRef<HTMLDivElement>(null)
 
-  const [mode, setMode] = useState<ModalMode>('login')
+  const [mode, setMode] = useState<ModalMode>(initialMode)
+
+  useEffect(() => {
+    if (isOpen) {
+      setMode(initialMode)
+    }
+  }, [isOpen, initialMode])
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -209,15 +216,20 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
 
   return (
     <>
-      {/* Scrim */}
-      <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
+      {/* Scrim / Backdrop */}
+      <div
+        className="fixed inset-0 z-[9998] bg-black/60 backdrop-blur-sm transition-opacity"
+        onClick={onClose}
+        aria-hidden="true"
+      />
 
-      {/* Panel */}
+      {/* Slide-Over Right Panel */}
       <div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
-        className="fixed right-0 top-0 z-50 flex h-full w-full max-w-md flex-col bg-white shadow-2xl"
+        style={{ backgroundColor: '#ffffff' }}
+        className="fixed right-0 top-0 bottom-0 z-[9999] flex h-screen w-full max-w-md flex-col bg-white shadow-2xl border-l border-gray-100"
       >
         {/* ── Header ── */}
         <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
@@ -255,7 +267,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
         </div>
 
         {/* ── Body ── */}
-        <div className="flex-1 overflow-y-auto px-6 py-7">
+        <div className="flex-1 overflow-y-auto px-6 py-7 bg-white" style={{ backgroundColor: '#ffffff' }}>
           {/* Title */}
           <div className="mb-5">
             <h2 className="text-2xl font-bold text-gray-900">

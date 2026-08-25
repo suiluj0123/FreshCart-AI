@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useCartContext } from '@/components/storefront/CartProvider'
 import { createClient } from '@/lib/auth/client'
+import LoginModal from '@/components/storefront/LoginModal'
 
 interface UserNavData {
   id: string
@@ -31,6 +32,8 @@ export default function NavbarClient({ user, initialUser, initialActiveOrderId }
   const [activeOrderType, setActiveOrderType] = useState<'delivery' | 'pickup'>('delivery')
   const [menuOpen, setMenuOpen] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [loginModalOpen, setLoginModalOpen] = useState(false)
+  const [loginModalMode, setLoginModalMode] = useState<'login' | 'register'>('login')
 
   const userEmail = initialUser?.email ?? null
 
@@ -187,6 +190,7 @@ export default function NavbarClient({ user, initialUser, initialActiveOrderId }
                 { href: '/', label: 'Home' },
                 { href: '/products', label: 'Shop' },
                 { href: '/meal-kits', label: 'Meal Kits' },
+                { href: '/meal-planner', label: 'AI Meal Planner ✨' },
                 { href: '/#how-it-works', label: 'How it Works' },
               ].map(({ href, label }) => (
                 <Link
@@ -301,18 +305,26 @@ export default function NavbarClient({ user, initialUser, initialActiveOrderId }
               </div>
             ) : (
               <div className="flex items-center gap-2">
-                <Link
-                  href="/login"
-                  className="rounded-xl px-3.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLoginModalMode('login')
+                    setLoginModalOpen(true)
+                  }}
+                  className="rounded-xl px-3.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
                 >
                   Sign In
-                </Link>
-                <Link
-                  href="/register"
-                  className="rounded-xl bg-emerald-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-emerald-700 transition-colors"
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLoginModalMode('register')
+                    setLoginModalOpen(true)
+                  }}
+                  className="rounded-xl bg-emerald-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-emerald-700 transition-colors cursor-pointer"
                 >
                   Register
-                </Link>
+                </button>
               </div>
             )}
 
@@ -353,6 +365,13 @@ export default function NavbarClient({ user, initialUser, initialActiveOrderId }
               Meal Kits
             </Link>
             <Link
+              href="/meal-planner"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block rounded-lg px-3 py-2 text-sm font-medium text-emerald-700 font-bold bg-emerald-50/70 hover:bg-emerald-100"
+            >
+              AI Meal Planner ✨
+            </Link>
+            <Link
               href="/account/orders"
               onClick={() => setMobileMenuOpen(false)}
               className="block rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
@@ -362,6 +381,13 @@ export default function NavbarClient({ user, initialUser, initialActiveOrderId }
           </div>
         )}
       </div>
+
+      {/* Right-Side Slide-Over Login / Register Drawer Modal */}
+      <LoginModal
+        isOpen={loginModalOpen}
+        onClose={() => setLoginModalOpen(false)}
+        initialMode={loginModalMode}
+      />
     </header>
   )
 }
