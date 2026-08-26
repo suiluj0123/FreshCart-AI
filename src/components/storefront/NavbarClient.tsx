@@ -93,15 +93,15 @@ export default function NavbarClient({ user, initialUser, initialActiveOrderId }
       if (session?.user) {
         const { data: profile } = await supabase
           .from('User')
-          .select('name, email')
-          .eq('authId', session.user.id)
+          .select('name, email, role')
+          .or(`authId.eq.${session.user.id},email.eq.${session.user.email}`)
           .maybeSingle()
 
         setCurrentUser({
           id: session.user.id,
           email: session.user.email ?? '',
           name: profile?.name || session.user.user_metadata?.name || session.user.email?.split('@')[0],
-          role: session.user.user_metadata?.role ?? 'customer',
+          role: profile?.role || (session.user.user_metadata?.role as string) || 'customer',
         })
       } else {
         setCurrentUser(null)
@@ -239,69 +239,93 @@ export default function NavbarClient({ user, initialUser, initialActiveOrderId }
             {/* Divider */}
             <div className="hidden sm:block h-6 w-px bg-gray-200" />
 
-            {/* Auth */}
+            {/* Auth & Admin Actions */}
             {currentUser ? (
-              <div className="relative">
-                <button
-                  onClick={() => setMenuOpen((v) => !v)}
-                  className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
-                >
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-600 text-white font-bold text-sm shadow-sm">
-                    {currentUser.name?.charAt(0).toUpperCase() || currentUser.email.charAt(0).toUpperCase()}
-                  </div>
-                  <span className="hidden sm:inline text-gray-700">
-                    Hi, <span className="font-semibold">{currentUser.name?.split(' ')[0] || 'there'}</span>!
-                  </span>
-                  <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-
-                {/* Dropdown Menu */}
-                {menuOpen && (
-                  <>
-                    <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
-                    <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-white p-2 shadow-xl border border-gray-100 z-20 space-y-1">
-                      <div className="px-3 py-2 border-b border-gray-100 mb-1">
-                        <p className="text-xs font-bold text-gray-900 truncate">{currentUser.name || 'Customer'}</p>
-                        <p className="text-[11px] text-gray-400 truncate">{currentUser.email}</p>
-                      </div>
-
-                      <Link
-                        href="/account"
-                        onClick={() => setMenuOpen(false)}
-                        className="flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition-colors"
-                      >
-                        👤 Customer Profile
-                      </Link>
-
-                      <Link
-                        href="/account/orders"
-                        onClick={() => setMenuOpen(false)}
-                        className="flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition-colors"
-                      >
-                        📜 My Order History
-                      </Link>
-
-                      {currentUser.role === 'admin' && (
-                        <Link
-                          href="/admin"
-                          onClick={() => setMenuOpen(false)}
-                          className="flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-purple-700 hover:bg-purple-50 transition-colors"
-                        >
-                          ⚡ Admin Dashboard
-                        </Link>
-                      )}
-
-                      <button
-                        onClick={handleSignOut}
-                        className="w-full flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors text-left cursor-pointer"
-                      >
-                        🚪 Sign Out
-                      </button>
-                    </div>
-                  </>
+              <div className="flex items-center gap-2">
+                {(currentUser.role === 'admin' || currentUser.role === 'system_admin' || currentUser.role === 'systemadmin') && (
+                  <Link
+                    href="/admin"
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-gray-900 px-3 py-1.5 text-xs font-bold text-emerald-400 border border-emerald-500/30 hover:bg-gray-800 shadow-sm transition-all"
+                  >
+                    <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span>Admin Console</span>
+                  </Link>
                 )}
+
+                <div className="relative">
+                  <button
+                    onClick={() => setMenuOpen((v) => !v)}
+                    className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
+                  >
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-600 text-white font-bold text-sm shadow-sm">
+                      {currentUser.name?.charAt(0).toUpperCase() || currentUser.email.charAt(0).toUpperCase()}
+                    </div>
+                    <span className="hidden sm:inline text-gray-700">
+                      Hi, <span className="font-semibold">{currentUser.name?.split(' ')[0] || 'there'}</span>!
+                    </span>
+                    <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+
+                  {/* Dropdown Menu */}
+                  {menuOpen && (
+                    <>
+                      <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
+                      <div className="absolute right-0 mt-2 w-60 rounded-2xl bg-white p-2 shadow-xl border border-gray-100 z-20 space-y-1">
+                        <div className="px-3 py-2 border-b border-gray-100 mb-1 flex items-center justify-between">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-bold text-gray-900 truncate">{currentUser.name || 'User'}</p>
+                            <p className="text-[11px] text-gray-400 truncate">{currentUser.email}</p>
+                          </div>
+                          {(currentUser.role === 'system_admin' || currentUser.role === 'systemadmin') ? (
+                            <span className="ml-2 text-[10px] font-black uppercase tracking-wider bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded">
+                              SysAdmin
+                            </span>
+                          ) : currentUser.role === 'admin' ? (
+                            <span className="ml-2 text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded">
+                              Admin
+                            </span>
+                          ) : null}
+                        </div>
+
+                        {(currentUser.role === 'admin' || currentUser.role === 'system_admin' || currentUser.role === 'systemadmin') && (
+                          <Link
+                            href="/admin"
+                            onClick={() => setMenuOpen(false)}
+                            className="flex items-center justify-between rounded-xl px-3 py-2 text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 transition-colors border border-emerald-200/80"
+                          >
+                            <span>⚡ Admin Dashboard</span>
+                            <span className="text-[11px] text-emerald-600">→</span>
+                          </Link>
+                        )}
+
+                        <Link
+                          href="/account"
+                          onClick={() => setMenuOpen(false)}
+                          className="flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 hover:text-emerald-700 transition-colors"
+                        >
+                          👤 Customer Profile
+                        </Link>
+
+                        <Link
+                          href="/account/orders"
+                          onClick={() => setMenuOpen(false)}
+                          className="flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 hover:text-emerald-700 transition-colors"
+                        >
+                          📜 My Order History
+                        </Link>
+
+                        <button
+                          onClick={handleSignOut}
+                          className="w-full flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors text-left cursor-pointer"
+                        >
+                          🚪 Sign Out
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
             ) : (
               <div className="flex items-center gap-2">

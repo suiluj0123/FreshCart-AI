@@ -1,4 +1,4 @@
-﻿export interface CartItem {
+export interface CartItem {
   id: string
   name: string
   price: number
@@ -9,20 +9,25 @@
 
 export type FulfillmentType = 'delivery' | 'pickup'
 
+export type PaymentMethod = 'cash' | 'card' | 'ewallet'
+
 export interface CheckoutFormData {
   fullName: string
   email: string
   phone: string
   address: string
-  zip: string
+  landmark?: string
+  zip?: string
   fulfillmentType: FulfillmentType
-  paymentMethod: 'cod' | 'card' // Cash on Delivery or Test Card
+  paymentMethod: PaymentMethod
   notes?: string
 }
 
 export interface CreateOrderPayload {
   userId?: string
   fulfillmentType: FulfillmentType
+  paymentMethod?: PaymentMethod
+  deliveryAddress?: string
   deliveryZip?: string
   total: number
   items: {
@@ -35,5 +40,6 @@ export interface CreateOrderPayload {
     email: string
     phone: string
     address: string
+    landmark?: string
   }
 }

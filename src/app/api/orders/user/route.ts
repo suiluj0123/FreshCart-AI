@@ -62,15 +62,15 @@ export async function GET() {
 
     let orders = rawOrders ?? []
 
-    // Calculate auto-progression status based on elapsed time
+    // Calculate auto-progression status based on elapsed time if not cancelled
     const ordersToUpdate: { id: string; status: string }[] = []
     orders = orders.map((order) => {
       let currentStatus = order.status
-      if (currentStatus !== 'completed') {
+      if (currentStatus !== 'completed' && currentStatus !== 'cancelled') {
         const elapsedSeconds = (Date.now() - new Date(order.createdAt).getTime()) / 1000
         if (elapsedSeconds > 300) {
           currentStatus = 'completed'
-        } else if (elapsedSeconds > 120) {
+        } else if (elapsedSeconds > 180) {
           currentStatus = order.fulfillmentType === 'delivery' ? 'out_for_delivery' : 'ready_pickup'
         } else if (elapsedSeconds > 60) {
           currentStatus = 'packed'

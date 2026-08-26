@@ -102,7 +102,7 @@ export default function LoginModal({ isOpen, onClose, initialMode = 'login' }: L
 
     setLoading(true)
     try {
-      const { error: err } = await supabase.auth.signInWithPassword({
+      const { data: authData, error: err } = await supabase.auth.signInWithPassword({
         email: cleanEmail,
         password,
       })
@@ -116,6 +116,23 @@ export default function LoginModal({ isOpen, onClose, initialMode = 'login' }: L
           setError(err.message)
         }
         return
+      }
+
+      // Role-based automatic redirection: Admins go straight to /admin
+      if (authData?.user) {
+        const { data: profile } = await supabase
+          .from('User')
+          .select('role')
+          .or(`authId.eq.${authData.user.id},email.eq.${cleanEmail}`)
+          .maybeSingle()
+
+        const userRole = profile?.role || (authData.user.user_metadata?.role as string) || 'customer'
+
+        if (userRole === 'admin') {
+          onClose()
+          window.location.href = '/admin'
+          return
+        }
       }
 
       router.refresh()

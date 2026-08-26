@@ -31,10 +31,15 @@ export async function middleware(request: NextRequest) {
       const { data: profile } = await supabaseAdmin
         .from('User')
         .select('role')
-        .eq('authId', user.id)
-        .single()
+        .or(`authId.eq.${user.id},email.eq.${user.email}`)
+        .maybeSingle()
 
-      if (!profile || profile.role !== 'admin') {
+      const isAdminRole =
+        profile?.role === 'admin' ||
+        profile?.role === 'system_admin' ||
+        profile?.role === 'systemadmin'
+
+      if (!profile || !isAdminRole) {
         url.pathname = '/'
         return NextResponse.redirect(url)
       }

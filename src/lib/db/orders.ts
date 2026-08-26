@@ -1,4 +1,4 @@
-﻿﻿import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@supabase/supabase-js'
 import type { CreateOrderPayload } from '@/types/cart'
 
 function getAdminClient() {
@@ -136,14 +136,14 @@ export async function getOrderById(orderId: string) {
 
   if (orderErr || !order) return null
 
-  // Auto-progression calculation based on elapsed seconds
-  const elapsedSeconds = (Date.now() - new Date(order.createdAt).getTime()) / 1000
-  let targetStatus = order.status
+  // Auto-progression calculation based on elapsed seconds if active
+  if (order.status !== 'cancelled' && order.status !== 'completed') {
+    const elapsedSeconds = (Date.now() - new Date(order.createdAt).getTime()) / 1000
+    let targetStatus = order.status
 
-  if (order.status !== 'completed') {
     if (elapsedSeconds > 300) {
       targetStatus = 'completed'
-    } else if (elapsedSeconds > 120) {
+    } else if (elapsedSeconds > 180) {
       targetStatus = order.fulfillmentType === 'delivery' ? 'out_for_delivery' : 'ready_pickup'
     } else if (elapsedSeconds > 60) {
       targetStatus = 'packed'

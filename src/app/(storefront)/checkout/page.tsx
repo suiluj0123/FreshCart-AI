@@ -1,4 +1,4 @@
-﻿﻿'use client'
+'use client'
 
 import React, { useState, useEffect, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -18,8 +18,9 @@ function CheckoutContent() {
     email: '',
     phone: '',
     address: '',
+    landmark: '',
     zip: '',
-    paymentMethod: 'cod' as 'cod' | 'card',
+    paymentMethod: 'cash' as 'cash' | 'card' | 'ewallet',
   })
   const [saveToProfile, setSaveToProfile] = useState(true)
   const [autoFilled, setAutoFilled] = useState(false)
@@ -159,11 +160,19 @@ function CheckoutContent() {
         }
       }
 
+      const fullDeliveryAddress = fulfillmentType === 'delivery'
+        ? [formData.address.trim(), formData.zip.trim(), formData.landmark ? `(Landmark: ${formData.landmark.trim()})` : '']
+            .filter(Boolean)
+            .join(', ')
+        : 'FreshCart Central Hub (Store Pickup)'
+
       const response = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           fulfillmentType,
+          paymentMethod: formData.paymentMethod,
+          deliveryAddress: fullDeliveryAddress,
           deliveryZip: formData.zip,
           total: grandTotal,
           items: items.map((i) => ({
@@ -175,7 +184,8 @@ function CheckoutContent() {
             fullName: formData.fullName,
             email: formData.email,
             phone: formData.phone,
-            address: formData.address,
+            address: fullDeliveryAddress,
+            landmark: formData.landmark,
           },
         }),
       })
@@ -325,30 +335,52 @@ function CheckoutContent() {
               </div>
 
               {fulfillmentType === 'delivery' && (
-                <>
+                <div className="space-y-4 pt-2 border-t border-gray-100">
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">Delivery Address *</label>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Exact Delivery Address (House / Unit No., Street, Building) *</label>
                     <input
                       type="text"
                       required={fulfillmentType === 'delivery'}
                       value={formData.address}
                       onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                      className="w-full rounded-xl border border-gray-200 px-3.5 py-2 text-sm focus:border-emerald-500 focus:outline-none"
-                      placeholder="Street address, Village/Barangay, City"
+                      className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:border-emerald-500 focus:outline-none"
+                      placeholder="e.g. Unit 402, Acacia Tower, 123 Emerald Ave"
                     />
                   </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">ZIP / Postal Code *</label>
-                    <input
-                      type="text"
-                      required={fulfillmentType === 'delivery'}
-                      value={formData.zip}
-                      onChange={(e) => setFormData({ ...formData, zip: e.target.value })}
-                      className="w-full rounded-xl border border-gray-200 px-3.5 py-2 text-sm focus:border-emerald-500 focus:outline-none"
-                      placeholder="1634"
-                    />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">Barangay / District & City *</label>
+                      <input
+                        type="text"
+                        required={fulfillmentType === 'delivery'}
+                        value={formData.zip}
+                        onChange={(e) => setFormData({ ...formData, zip: e.target.value })}
+                        className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:border-emerald-500 focus:outline-none"
+                        placeholder="e.g. Brgy. San Antonio, Pasig City"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">Nearest Landmark / Notes (Optional)</label>
+                      <input
+                        type="text"
+                        value={formData.landmark || ''}
+                        onChange={(e) => setFormData({ ...formData, landmark: e.target.value })}
+                        className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:border-emerald-500 focus:outline-none"
+                        placeholder="e.g. Beside 7-Eleven, Gate 2"
+                      />
+                    </div>
                   </div>
-                </>
+                </div>
+              )}
+
+              {fulfillmentType === 'pickup' && (
+                <div className="p-4 rounded-xl bg-emerald-50/70 border border-emerald-200/80 text-xs text-emerald-900 space-y-1">
+                  <p className="font-bold flex items-center gap-1.5">
+                    <span>🏪</span> Pickup Location: FreshCart Central Hub
+                  </p>
+                  <p className="text-emerald-800">Ground Floor, Express Counter, Market Ave, Metro Manila</p>
+                  <p className="text-[11px] text-emerald-700 pt-1 font-medium">Ready for pickup in approx. 30-45 minutes after order placement.</p>
+                </div>
               )}
 
               <div className="pt-2">
@@ -368,21 +400,72 @@ function CheckoutContent() {
             <div className="rounded-2xl bg-white p-6 border border-gray-100 shadow-sm space-y-4">
               <h2 className="text-lg font-bold text-gray-900">3. Payment Option</h2>
               <div className="space-y-3">
-                <label className="flex items-center justify-between rounded-xl border border-emerald-600 bg-emerald-50/50 p-4 cursor-pointer">
+                {/* Cash Option */}
+                <label className={`flex items-center justify-between rounded-xl border p-4 cursor-pointer transition-all ${
+                  formData.paymentMethod === 'cash'
+                    ? 'border-emerald-600 bg-emerald-50/50 text-emerald-900 ring-1 ring-emerald-600/30'
+                    : 'border-gray-200 hover:bg-gray-50'
+                }`}>
                   <div className="flex items-center gap-3">
                     <input
                       type="radio"
                       name="payment"
-                      checked={formData.paymentMethod === 'cod'}
-                      onChange={() => setFormData({ ...formData, paymentMethod: 'cod' })}
+                      checked={formData.paymentMethod === 'cash'}
+                      onChange={() => setFormData({ ...formData, paymentMethod: 'cash' })}
                       className="h-4 w-4 text-emerald-600 focus:ring-emerald-500"
                     />
                     <div>
-                      <span className="text-sm font-bold text-gray-900 block">Cash on Delivery / Pickup</span>
-                      <span className="text-xs text-gray-500">Pay cash upon arrival of your groceries</span>
+                      <span className="text-sm font-bold text-gray-900 block">
+                        {fulfillmentType === 'delivery' ? 'Cash on Delivery (COD)' : 'Cash on Counter'}
+                      </span>
+                      <span className="text-xs text-gray-500">Pay cash upon receiving your fresh groceries</span>
                     </div>
                   </div>
-                  <span className="text-lg">💵</span>
+                  <span className="text-xs font-bold px-2 py-1 bg-gray-100 text-gray-700 rounded-lg">CASH</span>
+                </label>
+
+                {/* Card Option */}
+                <label className={`flex items-center justify-between rounded-xl border p-4 cursor-pointer transition-all ${
+                  formData.paymentMethod === 'card'
+                    ? 'border-emerald-600 bg-emerald-50/50 text-emerald-900 ring-1 ring-emerald-600/30'
+                    : 'border-gray-200 hover:bg-gray-50'
+                }`}>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="radio"
+                      name="payment"
+                      checked={formData.paymentMethod === 'card'}
+                      onChange={() => setFormData({ ...formData, paymentMethod: 'card' })}
+                      className="h-4 w-4 text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <div>
+                      <span className="text-sm font-bold text-gray-900 block">Credit / Debit Card</span>
+                      <span className="text-xs text-gray-500">Visa, Mastercard, JCB (Secure online test checkout)</span>
+                    </div>
+                  </div>
+                  <span className="text-xs font-bold px-2 py-1 bg-blue-50 text-blue-700 rounded-lg">CARD</span>
+                </label>
+
+                {/* E-Wallet Option */}
+                <label className={`flex items-center justify-between rounded-xl border p-4 cursor-pointer transition-all ${
+                  formData.paymentMethod === 'ewallet'
+                    ? 'border-emerald-600 bg-emerald-50/50 text-emerald-900 ring-1 ring-emerald-600/30'
+                    : 'border-gray-200 hover:bg-gray-50'
+                }`}>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="radio"
+                      name="payment"
+                      checked={formData.paymentMethod === 'ewallet'}
+                      onChange={() => setFormData({ ...formData, paymentMethod: 'ewallet' })}
+                      className="h-4 w-4 text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <div>
+                      <span className="text-sm font-bold text-gray-900 block">E-Wallet (GCash / Maya)</span>
+                      <span className="text-xs text-gray-500">Pay via QR Ph, GCash, or Maya e-wallet</span>
+                    </div>
+                  </div>
+                  <span className="text-xs font-bold px-2 py-1 bg-purple-50 text-purple-700 rounded-lg">E-WALLET</span>
                 </label>
               </div>
             </div>
