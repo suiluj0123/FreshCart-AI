@@ -1,4 +1,4 @@
-﻿﻿import React from 'react'
+﻿import React from 'react'
 import { createClient } from '@/lib/auth/server'
 import { redirect } from 'next/navigation'
 
@@ -10,7 +10,7 @@ export default async function AdminDashboardPage() {
   // Retrieve auth user session
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
-    redirect('/login')
+    redirect('/')
   }
 
   // Fetch their profile details

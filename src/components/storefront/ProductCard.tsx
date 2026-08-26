@@ -1,9 +1,9 @@
-﻿'use client'
+'use client'
 
 import React, { useState } from 'react'
 import Link from 'next/link'
 import { useCartContext } from '@/components/storefront/CartProvider'
-import type { ProductWithStock } from '@/types/product'
+import { ProductWithStock, getProductCategoryLabel } from '@/types/product'
 
 interface ProductCardProps {
   product: ProductWithStock
@@ -48,6 +48,7 @@ export default function ProductCard({ product }: ProductCardProps) {
 
   const isInCart = items.some((i) => i.id === product.id)
   const outOfStock = product.totalStock === 0
+  const categoryLabel = getProductCategoryLabel(product)
 
   const handleAdd = () => {
     if (outOfStock) return
@@ -80,8 +81,8 @@ export default function ProductCard({ product }: ProductCardProps) {
             </span>
           )}
           {/* Category badge overlay */}
-          <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-0.5 text-xs font-semibold text-gray-600 capitalize shadow-sm">
-            {product.category}
+          <span className="absolute left-3 top-3 rounded-full bg-white/95 backdrop-blur-sm px-2.5 py-0.5 text-[11px] font-bold text-gray-700 shadow-sm border border-gray-100/80">
+            {categoryLabel}
           </span>
         </div>
       </Link>

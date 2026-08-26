@@ -1,4 +1,4 @@
-﻿﻿'use client'
+'use client'
 
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
@@ -27,7 +27,7 @@ export default function AccountPage() {
     async function loadData() {
       const { data: { user: authUser } } = await supabase.auth.getUser()
       if (!authUser) {
-        router.push('/login?redirectTo=/account')
+        router.push('/')
         return
       }
 
@@ -136,7 +136,7 @@ export default function AccountPage() {
   const handleSignOut = async () => {
     setLoading(true)
     await supabase.auth.signOut()
-    router.push('/login')
+    router.push('/')
     router.refresh()
   }
 

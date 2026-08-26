@@ -1,4 +1,4 @@
-﻿import { NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/auth/server'
 import { generateMealPlan, CatalogProduct } from '@/lib/ai/generateMealPlan'
@@ -84,6 +84,7 @@ export async function POST(request: Request) {
       success: true,
       recipes,
       totalPlanCost,
+      catalog,
     })
   } catch (err: any) {
     console.error('[API /api/meal-plan/generate] Error:', err)

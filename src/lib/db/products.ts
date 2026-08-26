@@ -37,7 +37,28 @@ export async function getProducts(filters: ProductFilters = {}): Promise<Product
     .eq('active', true)
 
   if (filters.category && filters.category !== 'all') {
-    query = query.eq('category', filters.category)
+    const cat = filters.category.toLowerCase()
+    if (cat === 'produce') {
+      query = query.or('category.ilike.%produce%,category.ilike.%vegetable%,category.ilike.%fruit%')
+    } else if (cat === 'meat') {
+      query = query.or('category.ilike.%meat%,name.ilike.%pork%,name.ilike.%chicken%,name.ilike.%beef%,name.ilike.%liempo%,name.ilike.%kasim%')
+    } else if (cat === 'seafood') {
+      query = query.or('category.ilike.%seafood%,category.ilike.%fish%,name.ilike.%bangus%,name.ilike.%tilapia%,name.ilike.%tuna%,name.ilike.%sardines%,name.ilike.%fish%,name.ilike.%shrimp%,name.ilike.%hipon%')
+    } else if (cat === 'dairy') {
+      query = query.or('category.ilike.%dairy%,category.ilike.%egg%,name.ilike.%milk%,name.ilike.%cheese%,name.ilike.%butter%,name.ilike.%egg%,name.ilike.%cream%,name.ilike.%yakult%')
+    } else if (cat === 'rice') {
+      query = query.or('name.ilike.%rice%,name.ilike.%sinandomeng%,name.ilike.%dinorado%,name.ilike.%pasta%,name.ilike.%spaghetti%,name.ilike.%bigas%')
+    } else if (cat === 'pantry') {
+      query = query.or('category.ilike.%pantry%,name.ilike.%vinegar%,name.ilike.%soy sauce%,name.ilike.%toyo%,name.ilike.%suka%,name.ilike.%ginisa%,name.ilike.%magic sarap%,name.ilike.%sardines%,name.ilike.%tuna%')
+    } else if (cat === 'frozen') {
+      query = query.or('category.ilike.%frozen%,name.ilike.%hotdog%,name.ilike.%tocino%,name.ilike.%longganisa%,name.ilike.%nuggets%,name.ilike.%ice cream%')
+    } else if (cat === 'beverages') {
+      query = query.or('category.ilike.%beverage%,name.ilike.%coffee%,name.ilike.%kopiko%,name.ilike.%nescafé%,name.ilike.%nescafe%,name.ilike.%tea%,name.ilike.%juice%,name.ilike.%drink%,name.ilike.%yakult%')
+    } else if (cat === 'snacks') {
+      query = query.or('category.ilike.%snack%,name.ilike.%crackers%,name.ilike.%skyflakes%,name.ilike.%pancit canton%,name.ilike.%noodles%,name.ilike.%chips%,name.ilike.%biscuit%')
+    } else {
+      query = query.eq('category', filters.category)
+    }
   }
 
   if (filters.search && filters.search.trim() !== '') {

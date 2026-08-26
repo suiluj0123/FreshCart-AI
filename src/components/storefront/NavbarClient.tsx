@@ -117,7 +117,7 @@ export default function NavbarClient({ user, initialUser, initialActiveOrderId }
     await supabase.auth.signOut()
     setCurrentUser(null)
     setMenuOpen(false)
-    router.push('/login')
+    router.push('/')
     router.refresh()
   }
 
@@ -190,7 +190,7 @@ export default function NavbarClient({ user, initialUser, initialActiveOrderId }
                 { href: '/', label: 'Home' },
                 { href: '/products', label: 'Shop' },
                 { href: '/meal-kits', label: 'Meal Kits' },
-                { href: '/meal-planner', label: 'AI Meal Planner ✨' },
+                { href: '/meal-planner', label: 'Meal Planner' },
                 { href: '/#how-it-works', label: 'How it Works' },
               ].map(({ href, label }) => (
                 <Link
@@ -367,9 +367,9 @@ export default function NavbarClient({ user, initialUser, initialActiveOrderId }
             <Link
               href="/meal-planner"
               onClick={() => setMobileMenuOpen(false)}
-              className="block rounded-lg px-3 py-2 text-sm font-medium text-emerald-700 font-bold bg-emerald-50/70 hover:bg-emerald-100"
+              className="block rounded-lg px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
             >
-              AI Meal Planner ✨
+              Meal Planner
             </Link>
             <Link
               href="/account/orders"

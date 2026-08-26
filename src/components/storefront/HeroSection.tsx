@@ -1,4 +1,4 @@
-﻿import Image from 'next/image'
+import Image from 'next/image'
 import Link from 'next/link'
 
 interface HeroSectionProps {
@@ -32,54 +32,54 @@ export default function HeroSection({ user }: HeroSectionProps) {
           {user ? (
             <>
               <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-emerald-500/20 border border-emerald-400/30 px-3.5 py-1 text-xs font-bold text-emerald-300 backdrop-blur-sm uppercase tracking-wide">
-                Welcome back, {firstName}! 🌿
+                Welcome back, {firstName}!
               </div>
               <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold leading-tight tracking-tight text-white">
                 Your fresh groceries,{' '}
-                <span className="text-emerald-400">AI-planned</span> for you.
+                <span className="text-emerald-400">smartly planned</span> for you.
               </h1>
               <p className="mt-4 text-base sm:text-lg text-gray-300 leading-relaxed">
-                Pick up where you left off or start a new AI-powered Filipino meal plan with 1-click cart checkout.
+                Pick up where you left off or plan a fresh Filipino meal with 1-click cart checkout.
               </p>
               <div className="mt-8 flex flex-wrap gap-4">
                 <Link
                   href="/meal-planner"
-                  className="rounded-2xl bg-emerald-600 px-6 py-3.5 text-sm font-extrabold text-white shadow-lg hover:bg-emerald-500 active:bg-emerald-700 transition-all cursor-pointer inline-flex items-center gap-2"
+                  className="rounded-2xl bg-emerald-600 px-6 py-3.5 text-sm font-bold text-white shadow-lg hover:bg-emerald-500 active:bg-emerald-700 transition-all cursor-pointer inline-flex items-center gap-2"
                 >
-                  <span>Launch AI Meal Planner ✨</span>
+                  <span>Open Meal Planner</span>
                 </Link>
                 <Link
                   href="/account/orders"
                   className="rounded-2xl border border-white/30 bg-white/10 px-6 py-3.5 text-sm font-bold text-white backdrop-blur-sm hover:bg-white/20 transition-all inline-flex items-center gap-2"
                 >
-                  <span>View Order History 📜</span>
+                  <span>View Order History</span>
                 </Link>
               </div>
             </>
           ) : (
             <>
               <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-emerald-500/20 border border-emerald-400/30 px-3.5 py-1 text-xs font-bold text-emerald-300 backdrop-blur-sm uppercase tracking-wide">
-                🇵🇭 Philippines&apos; First AI Grocery Store
+                Fresh Groceries & Meal Planning
               </div>
               <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold leading-tight tracking-tight text-white">
                 Discover the Joy of Cooking with{' '}
-                <span className="text-emerald-400">FreshCart AI</span>.
+                <span className="text-emerald-400">FreshCart</span>.
               </h1>
               <p className="mt-4 text-base sm:text-lg text-gray-300 leading-relaxed">
-                Fresh local ingredients, smart AI meal planning, and effortless door-to-door delivery across Metro Manila.
+                Fresh local ingredients, smart Filipino meal planning, and effortless door-to-door delivery across Metro Manila.
               </p>
               <div className="mt-8 flex flex-wrap gap-4">
                 <Link
                   href="/meal-planner"
-                  className="rounded-2xl bg-emerald-600 px-6 py-3.5 text-sm font-extrabold text-white shadow-lg hover:bg-emerald-500 active:bg-emerald-700 transition-all cursor-pointer inline-flex items-center gap-2"
+                  className="rounded-2xl bg-emerald-600 px-6 py-3.5 text-sm font-bold text-white shadow-lg hover:bg-emerald-500 active:bg-emerald-700 transition-all cursor-pointer inline-flex items-center gap-2"
                 >
-                  <span>Start AI Meal Planning ✨</span>
+                  <span>Start Meal Planning</span>
                 </Link>
                 <Link
                   href="/products"
                   className="rounded-2xl border border-white/30 bg-white/10 px-6 py-3.5 text-sm font-bold text-white backdrop-blur-sm hover:bg-white/20 transition-all inline-flex items-center gap-2"
                 >
-                  <span>Browse Groceries 🛒</span>
+                  <span>Browse Groceries</span>
                 </Link>
               </div>
             </>

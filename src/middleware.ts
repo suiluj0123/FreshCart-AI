@@ -13,8 +13,7 @@ export async function middleware(request: NextRequest) {
   // Gating rules
   if (isAdminPath) {
     if (!user) {
-      url.pathname = '/login'
-      url.searchParams.set('redirectTo', request.nextUrl.pathname)
+      url.pathname = '/'
       return NextResponse.redirect(url)
     }
 
@@ -47,8 +46,7 @@ export async function middleware(request: NextRequest) {
 
   if (isAccountPath) {
     if (!user) {
-      url.pathname = '/login'
-      url.searchParams.set('redirectTo', request.nextUrl.pathname)
+      url.pathname = '/'
       return NextResponse.redirect(url)
     }
   }

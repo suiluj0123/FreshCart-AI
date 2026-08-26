@@ -1,8 +1,9 @@
-﻿import React from 'react'
+import React from 'react'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getProductById } from '@/lib/db/products'
 import ProductDetailClient from '@/components/storefront/ProductDetailClient'
+import { getProductCategoryLabel } from '@/types/product'
 
 interface ProductDetailPageProps {
   params: Promise<{ id: string }>
@@ -15,6 +16,8 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
   const product = await getProductById(id)
 
   if (!product) return notFound()
+
+  const categoryLabel = getProductCategoryLabel(product)
 
   const CATEGORY_ICONS: Record<string, string> = {
     produce: '🥦',
@@ -33,7 +36,7 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
           <span>/</span>
           <Link href="/products" className="hover:text-emerald-700 transition-colors">Shop</Link>
           <span>/</span>
-          <span className="capitalize text-gray-400">{product.category}</span>
+          <span className="font-semibold text-gray-500">{categoryLabel}</span>
           <span>/</span>
           <span className="text-gray-900 font-medium line-clamp-1">{product.name}</span>
         </nav>

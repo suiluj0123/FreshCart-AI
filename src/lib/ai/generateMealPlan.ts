@@ -1,4 +1,4 @@
-﻿export interface MatchedIngredient {
+export interface MatchedIngredient {
   productId: string
   productName: string
   unit: string
@@ -42,7 +42,7 @@ export interface CatalogProduct {
 }
 
 /**
- * Smart fuzzy matching that understands Filipino culinary ingredient synonyms, aliases, and typos
+ * Smart fuzzy matching with comprehensive Filipino culinary vocabulary, Tagalog aliases, and common typos
  */
 export function matchProduct(ingredientQuery: string, catalog: CatalogProduct[]): CatalogProduct | null {
   const q = ingredientQuery.toLowerCase().trim()
@@ -56,40 +56,100 @@ export function matchProduct(ingredientQuery: string, catalog: CatalogProduct[])
 
   // 2. Filipino & English Culinary Synonym and Typo Mapping
   const synonymMap: Record<string, string[]> = {
+    // Poultry & Cuts (Manok)
     'chicken': ['chicken', 'drumstick', 'thigh'],
     'chiken': ['chicken', 'drumstick', 'thigh'],
     'manok': ['chicken', 'drumstick', 'thigh'],
+    'pitso': ['chicken'],
+    'pakpak': ['chicken'],
+    'hita': ['chicken', 'thigh'],
+
+    // Pork & Cuts (Baboy / Karne)
     'pork': ['pork belly', 'liempo', 'kasim', 'pork'],
     'liempo': ['pork belly', 'liempo'],
+    'kasim': ['pork', 'kasim'],
+    'pigue': ['pork', 'kasim'],
     'baboy': ['pork belly', 'liempo', 'kasim', 'pork'],
+    'karne': ['pork belly', 'liempo', 'beef'],
+    'giniling': ['pork', 'beef'],
+
+    // Beef & Cuts (Baka)
     'beef': ['beef', 'caldereta', 'brisket', 'shank'],
     'baka': ['beef', 'caldereta', 'brisket', 'shank'],
+    'bulalo': ['beef', 'shank'],
+
+    // Seafood (Isda atbp.)
+    'isda': ['tilapia', 'bangus', 'fish'],
+    'tilapia': ['tilapia', 'fish'],
+    'bangus': ['bangus', 'fish'],
+    'galunggong': ['fish'],
+    'hipon': ['shrimp', 'hipon'],
+    'shrimp': ['shrimp', 'hipon'],
+    'tuna': ['tuna', 'fish'],
+    'sardinas': ['sardines', 'fish'],
+    'sardines': ['sardines', 'fish'],
+
+    // Eggs & Dairy (Itlog)
     'egg': ['egg', 'itlog'],
     'eggs': ['egg', 'itlog'],
     'itlog': ['egg', 'itlog'],
+    'cheese': ['cheese', 'quickmelt'],
+    'gatas': ['milk', 'selecta', 'bear brand'],
+    'milk': ['milk', 'selecta', 'bear brand'],
+    'butter': ['butter', 'magnolia'],
+
+    // Potatoes & Root Crops (Patatas / Gabi)
     'potato': ['potato', 'patatas', 'cabbage'],
     'potatoes': ['potato', 'patatas', 'cabbage'],
     'patatas': ['potato', 'patatas', 'cabbage'],
+    'gabi': ['taro', 'potato'],
+    'kamote': ['potato'],
+
+    // Aromatics & Spices (Panggisa)
     'garlic': ['garlic', 'bawang'],
     'bawang': ['garlic', 'bawang'],
     'onion': ['red onions', 'sibuyas', 'onion'],
     'onions': ['red onions', 'sibuyas', 'onion'],
     'sibuyas': ['red onions', 'sibuyas', 'onion'],
-    'tomato': ['tomatoes', 'kamatis'],
-    'tomatoes': ['tomatoes', 'kamatis'],
-    'kamatis': ['tomatoes', 'kamatis'],
+    'tomato': ['calamansi', 'sayote', 'eggplant', 'cabbage'],
+    'tomatoes': ['calamansi', 'sayote', 'eggplant', 'cabbage'],
+    'kamatis': ['calamansi', 'sayote', 'eggplant', 'cabbage'],
     'ginger': ['ginger', 'luya'],
     'luya': ['ginger', 'luya'],
+    'sili': ['chili', 'sili', 'labuyo'],
+    'labuyo': ['chili', 'sili'],
+    'paminta': ['pepper', 'seasoning'],
+
+    // Greens & Native Vegetables (Gulay)
     'kangkong': ['kangkong', 'spinach'],
     'spinach': ['kangkong', 'spinach'],
     'cabbage': ['baguio cabbage', 'cabbage', 'repolyo'],
     'repolyo': ['baguio cabbage', 'cabbage', 'repolyo'],
+    'pechay': ['pechay', 'baguio cabbage', 'cabbage', 'kangkong'],
+    'talong': ['eggplant', 'talong', 'kangkong'],
+    'sitaw': ['yardlong bean', 'kangkong', 'cabbage'],
+    'ampalaya': ['bitter melon', 'cabbage', 'kangkong'],
+    'sayote': ['sayote', 'chayote', 'cabbage'],
+    'kalabasa': ['squash', 'kalabasa', 'potato'],
     'avocado': ['avocados', 'avocado'],
     'calamansi': ['calamansi', 'kalamansi', 'lemon'],
+    'kalamansi': ['calamansi', 'kalamansi', 'lemon'],
+
+    // Seasonings & Condiments (Pampalasa & Sawsawan)
     'ginisa': ['aji-no-moto ginisa mix', 'magic sarap', 'ginisa mix', 'seasoning'],
     'magic sarap': ['aji-no-moto ginisa mix', 'magic sarap', 'ginisa mix'],
     'seasoning': ['aji-no-moto ginisa mix', 'magic sarap', 'ginisa mix'],
+    'toyo': ['soy sauce', 'toyo', 'seasoning'],
+    'suka': ['vinegar', 'suka'],
+    'patis': ['fish sauce', 'patis', 'seasoning'],
+    'bagoong': ['bagoong', 'seasoning'],
+    'sinigang mix': ['sinigang', 'seasoning', 'tomatoes'],
+    'sampalok': ['sinigang', 'tomatoes', 'calamansi'],
     'rice': ['rice', 'bigas'],
+    'bigas': ['rice', 'bigas'],
+    'hotdog': ['hotdog', 'purefoods'],
+    'tocino': ['tocino'],
+    'longganisa': ['longganisa'],
   }
 
   for (const [key, aliases] of Object.entries(synonymMap)) {
@@ -126,28 +186,73 @@ export function matchProduct(ingredientQuery: string, catalog: CatalogProduct[])
 }
 
 /**
- * Fast 10-15 Minute Quick Filipino Meals
+ * Pre-processes user prompt to extract explicit dish names and requested ingredients
+ */
+function extractUserIntent(prompt: string) {
+  const p = prompt.toLowerCase()
+  const detectedIngredients: string[] = []
+
+  const potentialIngredients = [
+    { key: 'chicken', aliases: ['chicken', 'chiken', 'manok'] },
+    { key: 'pork', aliases: ['pork', 'liempo', 'baboy', 'kasim'] },
+    { key: 'beef', aliases: ['beef', 'baka', 'bulalo'] },
+    { key: 'egg', aliases: ['egg', 'eggs', 'itlog'] },
+    { key: 'potato', aliases: ['potato', 'potatoes', 'patatas'] },
+    { key: 'kangkong', aliases: ['kangkong', 'spinach'] },
+    { key: 'cabbage', aliases: ['cabbage', 'repolyo'] },
+    { key: 'tomato', aliases: ['tomato', 'tomatoes', 'kamatis'] },
+    { key: 'onion', aliases: ['onion', 'onions', 'sibuyas'] },
+    { key: 'garlic', aliases: ['garlic', 'bawang'] },
+    { key: 'ginger', aliases: ['ginger', 'luya'] },
+    { key: 'talong', aliases: ['talong', 'eggplant'] },
+    { key: 'sitaw', aliases: ['sitaw', 'beans'] },
+    { key: 'sayote', aliases: ['sayote', 'chayote'] },
+    { key: 'ampalaya', aliases: ['ampalaya', 'bitter melon'] },
+    { key: 'tilapia', aliases: ['tilapia', 'isda', 'fish'] },
+    { key: 'bangus', aliases: ['bangus', 'milkfish'] },
+    { key: 'tuna', aliases: ['tuna'] },
+    { key: 'sardines', aliases: ['sardines', 'sardinas'] },
+    { key: 'hotdog', aliases: ['hotdog', 'tender juicy'] },
+    { key: 'tocino', aliases: ['tocino'] },
+    { key: 'longganisa', aliases: ['longganisa'] },
+    { key: 'rice', aliases: ['rice', 'bigas'] },
+    { key: 'calamansi', aliases: ['calamansi', 'kalamansi'] },
+  ]
+
+  for (const item of potentialIngredients) {
+    if (item.aliases.some((alias) => p.includes(alias))) {
+      detectedIngredients.push(item.key)
+    }
+  }
+
+  return {
+    detectedIngredients,
+  }
+}
+
+/**
+ * Fast 10-15 Minute Quick Filipino Meals with authentic Tagalog naming
  */
 function generateQuickMeals(servings: number, catalog: CatalogProduct[], budgetLimit?: number): GeneratedRecipe[] {
   const portionMultiplier = servings <= 2 ? 1 : Math.ceil(servings / 4)
 
   const quickChickenStirFry: GeneratedRecipe = {
-    id: 'quick-chicken-garlic-stirfry',
-    title: '12-Minute Garlic Butter Chicken & Kangkong Stir-Fry',
-    description: 'Crisp water spinach and thinly sliced chicken breast/thighs flash-cooked with golden garlic and savory seasonings in just 12 minutes.',
+    id: 'quick-chicken-kangkong-stirfry',
+    title: 'Ginisang Manok at Kangkong sa Bawang (12-Min Quick Stir-Fry)',
+    description: 'Nipis-hiwang manok na ginisa sa maramihang bawang at sariwang kangkong — mabilis lutuin at malinamnam na ulam pang-hapunan.',
     prepTimeMinutes: 4,
     cookTimeMinutes: 8,
     servings,
     caloriesPerServing: 310,
-    dietTags: ['Quick 15-Minute', 'High Protein', 'Fast Dinner'],
-    chefTip: 'Slice chicken thinly across the grain so it browns and cooks through completely in under 5 minutes on high heat.',
-    suggestedSawsawan: 'Calamansi + Sili + Patis',
+    dietTags: ['Quick 15-Minute', 'High Protein', 'Gisado'],
+    chefTip: 'Hiwain nang maninipis ang karne ng manok laban sa hibla para maluto at maging malambot sa loob ng 4 na minuto sa mainit na kawali.',
+    suggestedSawsawan: 'Toyo-Mansi na may pinigang Calamansi at Siling Labuyo',
     instructions: [
-      'Slice chicken into bite-sized strips and season with a pinch of salt and pepper.',
-      'Heat 1 tbsp cooking oil in a hot skillet; sauté minced garlic until golden fragrant (1 minute).',
-      'Add chicken strips; stir-fry vigorously on high heat for 4 minutes until cooked through.',
-      'Toss in fresh kangkong leaves and a splash of soy sauce or ginisa mix; stir-fry for 2 minutes and remove from heat immediately.',
-      'Serve sizzling hot with steamed white rice.',
+      'Hiwain ang manok sa maninipis na piraso at timplahan ng kaunting asin at paminta.',
+      'Initin ang mantika sa kawali. Igisa muna ang tinadtad na bawang hanggang maging mabango at golden brown (1 minuto).',
+      'Ilagay ang sibuyas at hiwang manok; igisa sa malakas na apoy nang 4 na minuto hanggang pumuti at maluto.',
+      'Ihalo ang tangkay at dahon ng kangkong kasama ang kaunting toyo o ginisa mix. Haluin nang 2 minuto at hanguin agad para manatiling malutong ang gulay.',
+      'Ihain nang mainit kasama ang bagong saing na kanin.',
     ],
     matchedIngredients: [],
     estimatedCost: 0,
@@ -192,7 +297,7 @@ function generateQuickMeals(servings: number, catalog: CatalogProduct[], budgetL
       unit: garlicMatch.unit,
       price: garlicMatch.basePrice,
       quantityNeeded: 1,
-      ingredientLabel: 'Native Garlic',
+      ingredientLabel: 'Native Garlic (Bawang)',
       imageUrl: garlicMatch.imageUrl,
     })
   }
@@ -202,20 +307,20 @@ function generateQuickMeals(servings: number, catalog: CatalogProduct[], budgetL
   // Second quick dish: Ginisang Kamatis at Itlog
   const quickEggTomato: GeneratedRecipe = {
     id: 'quick-ginisang-itlog-kamatis',
-    title: '10-Minute Savory Ginisang Itlog at Kamatis',
-    description: 'Fluffy scrambled eggs sautéed with juicy ripe native tomatoes and sweet red onions—classic budget-friendly 10-minute comfort food.',
+    title: 'Ginisang Kamatis at Itlog sa Pulang Sibuyas (10-Min Ulam)',
+    description: 'Malambot at malinamnam na scrambled eggs na ginisa sa hinog na kamatis at pulang sibuyas — paboritong lutong-bahay na ulam.',
     prepTimeMinutes: 3,
     cookTimeMinutes: 7,
     servings,
     caloriesPerServing: 240,
-    dietTags: ['Quick 15-Minute', 'Budget Friendly', 'High Protein'],
-    chefTip: 'Cook tomatoes until completely collapsed and jammy before pouring in the beaten eggs for rich savory flavor.',
-    suggestedSawsawan: 'Patis with Calamansi',
+    dietTags: ['Quick 15-Minute', 'Budget Saver', 'Lutong Bahay'],
+    chefTip: 'Lutuin muna nang husto ang kamatis hanggang sa lumambot at lumabas ang natural nitong katas bago ibuhos ang binating itlog.',
+    suggestedSawsawan: 'Patis na may Calamansi at Sileng Labuyo',
     instructions: [
-      'In a bowl, beat 4-6 eggs with a pinch of seasoning mix and pepper.',
-      'Heat oil in a pan; sauté chopped red onions and ripe tomatoes for 3 minutes until soft and juicy.',
-      'Pour in the beaten eggs; let set for 30 seconds, then gently fold with a spatula for 2 minutes until soft and creamy.',
-      'Turn off heat while eggs are still tender; serve immediately with warm rice.',
+      'Batiin ang 4-6 pirasong itlog sa mangkok na may kaunting paminta at pampalasa.',
+      'Initin ang mantika sa kawali. Igisa ang pulang sibuyas at hiwang kamatis nang 3 minuto hanggang maging malambot at makatas.',
+      'Ibuhos ang binating itlog. Hayaang mamuo nang bahagya sa loob ng 30 segundo, saka dahan-dahang haluin nang 2 minuto.',
+      'Patayin ang apoy habang malambot at creamy pa ang itlog. Ihain agad kasama ang mainit na kanin.',
     ],
     matchedIngredients: [],
     estimatedCost: 0,
@@ -234,7 +339,7 @@ function generateQuickMeals(servings: number, catalog: CatalogProduct[], budgetL
       unit: eggMatch.unit,
       price: eggMatch.basePrice,
       quantityNeeded: portionMultiplier,
-      ingredientLabel: 'Farm Fresh Eggs',
+      ingredientLabel: 'Farm Fresh Eggs (Itlog)',
       imageUrl: eggMatch.imageUrl,
     })
   }
@@ -246,7 +351,7 @@ function generateQuickMeals(servings: number, catalog: CatalogProduct[], budgetL
       unit: tomatoMatch.unit,
       price: tomatoMatch.basePrice,
       quantityNeeded: 1,
-      ingredientLabel: 'Native Tomatoes',
+      ingredientLabel: 'Fresh Native Tomatoes (Kamatis)',
       imageUrl: tomatoMatch.imageUrl,
     })
   }
@@ -258,14 +363,13 @@ function generateQuickMeals(servings: number, catalog: CatalogProduct[], budgetL
       unit: onionMatch.unit,
       price: onionMatch.basePrice,
       quantityNeeded: 1,
-      ingredientLabel: 'Red Onions',
+      ingredientLabel: 'Red Onions (Sibuyas)',
       imageUrl: onionMatch.imageUrl,
     })
   }
   quickEggTomato.matchedIngredients = ings2
   quickEggTomato.estimatedCost = cost2
 
-  // If budget limit is tight (e.g. <= 500), return single high-value dish or both if within limit
   if (budgetLimit && cost1 + cost2 > budgetLimit) {
     return [quickChickenStirFry]
   }
@@ -274,7 +378,7 @@ function generateQuickMeals(servings: number, catalog: CatalogProduct[], budgetL
 }
 
 /**
- * Fallback generator with strict constraints
+ * Authentic Filipino Fallback Recipes with Deep Culinary Phrasing
  */
 function generateFallbackRecipes(
   prompt: string,
@@ -290,13 +394,190 @@ function generateFallbackRecipes(
     return generateQuickMeals(servings, catalog, budgetLimit)
   }
 
-  // Chicken Adobo with Eggs and Potatoes
   const portionMultiplier = servings <= 2 ? 1 : Math.ceil(servings / 4)
+
+  // 1. SINIGANG BLUEPRINT
+  if (pLower.includes('sinigang')) {
+    const isPork = !pLower.includes('bangus') && !pLower.includes('isda') && !pLower.includes('manok') && !pLower.includes('chicken')
+    const mainProteinQuery = isPork ? 'pork' : (pLower.includes('bangus') ? 'bangus' : 'chicken')
+
+    const rawIngredients = [
+      { label: isPork ? 'Pork Liempo (Belly Cut, 1kg)' : 'Fresh Bangus / Chicken', query: mainProteinQuery, baseQty: 1, isMain: true },
+      { label: 'Fresh Kangkong (Local Spinach)', query: 'kangkong', baseQty: 1 },
+      { label: 'Red Onions (Sibuyas Tagalog)', query: 'onion', baseQty: 1 },
+      { label: 'Calamansi (pack of 250g)', query: 'calamansi', baseQty: 1 },
+      { label: 'Sitaw (Yardlong beans)', query: 'sitaw', baseQty: 1 },
+      { label: 'Eggplant (Talong)', query: 'talong', baseQty: 1 },
+      { label: 'Native Garlic (Bawang)', query: 'garlic', baseQty: 1 },
+    ]
+
+    const matchedIngredients: MatchedIngredient[] = []
+    let totalCost = 0
+
+    for (const raw of rawIngredients) {
+      const matched = matchProduct(raw.query, catalog)
+      if (matched && !matchedIngredients.some((m) => m.productId === matched.id)) {
+        const qty = raw.isMain ? portionMultiplier : 1
+        totalCost += matched.basePrice * qty
+        matchedIngredients.push({
+          productId: matched.id,
+          productName: matched.name,
+          unit: matched.unit,
+          price: matched.basePrice,
+          quantityNeeded: qty,
+          ingredientLabel: raw.label,
+          imageUrl: matched.imageUrl,
+        })
+      }
+    }
+
+    return [
+      {
+        id: 'sinigang-na-baboy-complete',
+        title: isPork ? 'Sinigang na Baboy sa Kamatis at Kangkong' : 'Sinigang na Bangus sa Kamatis at Kangkong',
+        description: 'Tradisyunal na asim-kilig na sinigang na may malambot na karne, sariwang kamatis, kangkong, at sitaw — paboritong sabaw ng pamilyang Pilipino.',
+        prepTimeMinutes: 10,
+        cookTimeMinutes: 30,
+        servings,
+        caloriesPerServing: 410,
+        dietTags: ['Lutong Bahay', 'Pinoy Sabaw', 'High Protein'],
+        chefTip: 'Pigain o durugin ang pinakuluang hinog na kamatis sa sabaw para maging natural ang asim at magandang mamula-mula ang sabaw.',
+        suggestedSawsawan: 'Patis na may pinigang Calamansi at Siling Labuyo',
+        instructions: [
+          'Pakuluan ang karne ng baboy sa 5-6 tasang tubig kasama ang hiniwang kamatis at sibuyas nang 20 minuto hanggang lumambot.',
+          'Durugin nang bahagya ang mga kamatis sa sandok para kumalat ang natural na asim at kulay sa sabaw.',
+          'Idagdag ang calamansi o pampaasim, bawang, at patis ayon sa nais na lasa.',
+          'Ihalo ang sitaw at iba pang gulay; pakuluin nang 3 minuto.',
+          'Huling ilagay ang sariwang kangkong, patayin agad ang apoy, at takpan nang 2 minuto para manatiling berde at malutong.',
+          'Ihain nang mainit kasama ang patis-mansi sawsawan at kanin.',
+        ],
+        matchedIngredients,
+        estimatedCost: totalCost > 0 ? totalCost : 420,
+      },
+    ]
+  }
+
+  // 2. TINOLA BLUEPRINT
+  if (pLower.includes('tinola')) {
+    const rawIngredients = [
+      { label: 'Fresh Chicken Cuts (Manok)', query: 'chicken', baseQty: 1, isMain: true },
+      { label: 'Fresh Sayote (Chayote)', query: 'sayote', baseQty: 1 },
+      { label: 'Fresh Ginger (Luya)', query: 'ginger', baseQty: 1 },
+      { label: 'Native Garlic (Bawang)', query: 'garlic', baseQty: 1 },
+      { label: 'Red Onions (Sibuyas Tagalog)', query: 'onion', baseQty: 1 },
+      { label: 'Fresh Kangkong / Greens', query: 'kangkong', baseQty: 1 },
+    ]
+
+    const matchedIngredients: MatchedIngredient[] = []
+    let totalCost = 0
+
+    for (const raw of rawIngredients) {
+      const matched = matchProduct(raw.query, catalog)
+      if (matched) {
+        const qty = raw.isMain ? portionMultiplier : 1
+        totalCost += matched.basePrice * qty
+        matchedIngredients.push({
+          productId: matched.id,
+          productName: matched.name,
+          unit: matched.unit,
+          price: matched.basePrice,
+          quantityNeeded: qty,
+          ingredientLabel: raw.label,
+          imageUrl: matched.imageUrl,
+        })
+      }
+    }
+
+    return [
+      {
+        id: 'tinolang-manok-complete',
+        title: 'Tinolang Manok sa Sariwang Luya at Sayote',
+        description: 'Masustansya at nagpapainit ng tiyang sabaw ng manok na may tamang anghang ng sariwang luya, malambot na sayote, at berdeng dahon.',
+        prepTimeMinutes: 10,
+        cookTimeMinutes: 25,
+        servings,
+        caloriesPerServing: 340,
+        dietTags: ['Lutong Bahay', 'Healthy Sabaw', 'High Protein'],
+        chefTip: 'Igisa muna nang husto ang luya at manok sa mantika bago sabawan ng tubig para mawala ang lansa at lumabas ang natural na katas ng karne.',
+        suggestedSawsawan: 'Patis na may Calamansi at Siling Labuyo',
+        instructions: [
+          'Initin ang mantika sa kaserola. Igisa ang bawang, sibuyas, at maraming hiniwang luya hanggang maging mabango.',
+          'Ilagay ang mga hiwa ng manok at igisa nang 5-7 minuto hanggang mamuti at medyo mag-brown ang balat.',
+          'Ibuhos ang 4-5 tasang tubig, timplahan ng patis at paminta, at pakuluin nang 15 minuto hanggang lumambot ang manok.',
+          'Ihalo ang hiniwang sayote at lutuin nang 5 minuto hanggang lumambot.',
+          'Ilagay ang dahon ng kangkong o dahon ng sili, patayin ang apoy, at ihain nang mainit.',
+        ],
+        matchedIngredients,
+        estimatedCost: totalCost > 0 ? totalCost : 310,
+      },
+    ]
+  }
+
+  // 3. GINISANG MONGGO BLUEPRINT
+  if (pLower.includes('monggo') || pLower.includes('mung bean')) {
+    const rawIngredients = [
+      { label: 'Pork Liempo / Kasim', query: 'pork', baseQty: 1, isMain: true },
+      { label: 'Fresh Native Tomatoes (Kamatis)', query: 'tomato', baseQty: 1 },
+      { label: 'Fresh Kangkong / Greens', query: 'kangkong', baseQty: 1 },
+      { label: 'Native Garlic (Bawang)', query: 'garlic', baseQty: 1 },
+      { label: 'Red Onions (Sibuyas Tagalog)', query: 'onion', baseQty: 1 },
+    ]
+
+    const matchedIngredients: MatchedIngredient[] = []
+    let totalCost = 0
+
+    for (const raw of rawIngredients) {
+      const matched = matchProduct(raw.query, catalog)
+      if (matched) {
+        const qty = raw.isMain ? portionMultiplier : 1
+        totalCost += matched.basePrice * qty
+        matchedIngredients.push({
+          productId: matched.id,
+          productName: matched.name,
+          unit: matched.unit,
+          price: matched.basePrice,
+          quantityNeeded: qty,
+          ingredientLabel: raw.label,
+          imageUrl: matched.imageUrl,
+        })
+      }
+    }
+
+    return [
+      {
+        id: 'ginisang-monggo-complete',
+        title: 'Ginisang Monggo na may Liempo at Kangkong',
+        description: 'Malinamnam at masustansyang paboritong ulam — monggo na pinalambot at ginisa sa bawang, sibuyas, kamatis, at sariwang gulay.',
+        prepTimeMinutes: 10,
+        cookTimeMinutes: 25,
+        servings,
+        caloriesPerServing: 380,
+        dietTags: ['Lutong Bahay', 'Budget Saver', 'High Fiber'],
+        chefTip: 'Igisa nang husto ang bawang hanggang maging golden brown bago ilagay ang kamatis para maging mas malalim at mabango ang lasa ng gisa.',
+        suggestedSawsawan: 'Patis na may Calamansi at Siling Labuyo',
+        instructions: [
+          'Pakuluan ang monggo hanggang lumambot at maging creamy.',
+          'Sa hiwalay na kawali, igisa ang bawang hanggang mag-golden brown, saka ihalo ang sibuyas at hinog na kamatis.',
+          'Ilagay ang hiwa-hiwang karne at lutuin nang 5 minuto hanggang maging malambot.',
+          'Ibuhos ang pinalambot na monggo kasama ang sabaw nito, timplahan ng patis at paminta, at hayaang kumulo nang 8 minuto.',
+          'Ihalo ang sariwang kangkong, lutuin nang 1 minuto, at patayin ang apoy.',
+          'Ihain nang mainit kasama ang kanin.',
+        ],
+        matchedIngredients,
+        estimatedCost: totalCost > 0 ? totalCost : 280,
+      },
+    ]
+  }
+
+  // 4. DEFAULT ADOBO WITH FULL INGREDIENTS
+  const isPorkAdobo = pLower.includes('pork') || pLower.includes('liempo') || pLower.includes('baboy')
   const rawIngredients = [
-    { label: 'Fresh Chicken Cuts (1kg)', query: 'chicken', baseQty: 1 },
-    { label: 'Farm Fresh Eggs (dozen)', query: 'egg', baseQty: 1 },
-    { label: 'Native Garlic (500g)', query: 'garlic', baseQty: 1 },
-    { label: 'Red Onions (1kg)', query: 'onion', baseQty: 1 },
+    { label: isPorkAdobo ? 'Pork Liempo (Belly Cut)' : 'Fresh Chicken Cuts (Manok)', query: isPorkAdobo ? 'pork' : 'chicken', baseQty: 1, isMain: true },
+    { label: 'Farm Fresh Eggs (Itlog)', query: 'egg', baseQty: 1 },
+    { label: 'Baguio Potatoes (Patatas)', query: 'potato', baseQty: 1 },
+    { label: 'Native Garlic (Bawang)', query: 'garlic', baseQty: 1 },
+    { label: 'Red Onions (Sibuyas Tagalog)', query: 'onion', baseQty: 1 },
+    { label: 'Datu Puti Soy Sauce & Vinegar', query: 'toyo', baseQty: 1 },
   ]
 
   const matchedIngredients: MatchedIngredient[] = []
@@ -305,7 +586,7 @@ function generateFallbackRecipes(
   for (const raw of rawIngredients) {
     const matched = matchProduct(raw.query, catalog)
     if (matched) {
-      const qty = raw.baseQty * portionMultiplier
+      const qty = raw.isMain ? portionMultiplier : 1
       totalCost += matched.basePrice * qty
       matchedIngredients.push({
         productId: matched.id,
@@ -319,41 +600,44 @@ function generateFallbackRecipes(
     }
   }
 
-  const mainAdobo: GeneratedRecipe = {
-    id: 'chicken-adobo-potato-eggs',
-    title: 'Savory Chicken Adobo with Hard-Boiled Eggs & Garlic',
-    description: 'The beloved Pinoy comfort classic: tender chicken simmered in rich soy sauce, vinegar, and garlic, paired with savory hard-boiled eggs steeped in adobo sauce.',
-    prepTimeMinutes: 10,
-    cookTimeMinutes: 25,
-    servings,
-    caloriesPerServing: 450,
-    dietTags: ['Pinoy Classic', 'High Protein', 'Comfort Food'],
-    chefTip: 'Boil eggs ahead and add to the simmering sauce in the last 5 minutes to soak up rich golden adobo flavor.',
-    suggestedSawsawan: 'Toyo + Suka + Sili',
-    instructions: [
-      'Boil eggs for 9 minutes until hard-boiled, peel, and set aside.',
-      'In a pan, brown chicken pieces with crushed garlic in 1 tbsp oil.',
-      'Pour in soy sauce, vinegar, and black pepper. Bring to a rapid boil for 4 minutes uncovered.',
-      'Add 1 cup water, cover, and simmer for 15 minutes until chicken is tender.',
-      'Add peeled eggs; simmer for 5 minutes until eggs absorb the savory sauce.',
-      'Serve hot with steamed rice.',
-    ],
-    matchedIngredients,
-    estimatedCost: totalCost,
-  }
-
-  return [mainAdobo]
+  return [
+    {
+      id: 'chicken-adobo-potato-eggs-complete',
+      title: isPorkAdobo ? 'Adobong Liempo na may Patatas at Nilagang Itlog' : 'Adobong Manok na may Patatas at Nilagang Itlog',
+      description: 'Malinamnam at tradisyunal na adobo na pinalambot sa toyo, suka, at maraming bawang, sinamahan ng pinritong patatas at masarap na nilagang itlog.',
+      prepTimeMinutes: 10,
+      cookTimeMinutes: 25,
+      servings,
+      caloriesPerServing: 450,
+      dietTags: ['Lutong Bahay', 'High Protein', 'Pinoy Favorite'],
+      chefTip: 'Huwag haluin agad ang suka pagkabuhos sa kawali — hayaang kumulo nang walang takip sa loob ng 3 minuto para hindi maging maasim ang timpla.',
+      suggestedSawsawan: 'Toyo at Suka na may dinurog na bawang at siling labuyo',
+      instructions: [
+        'Pakuluan ang mga itlog nang 9 na minuto; palamigin sa tubig, balatan, at itabi.',
+        'Sa kawali, iprito nang bahagya ang mga hiwang patatas hanggang maging golden brown; itabi.',
+        'Igisa ang karne kasama ang dinurog na bawang at sibuyas hanggang maging tostado at mabango.',
+        'Ibuhos ang toyo, suka, dahon ng laurel, at buong paminta. Pakuluin nang walang takip sa loob ng 4 na minuto.',
+        'Magdagdag ng 1 tasang tubig, takpan, at hayaang kumulo sa mahinang apoy nang 15 minuto hanggang lumambot ang karne.',
+        'Ihalo ang pinritong patatas at nilagang itlog. Lutuin pa nang 5 minuto hanggang kumapit ang sarsa at maging makintab ang adobo.',
+        'Ihain nang mainit kasama ang bagong saing na kanin.',
+      ],
+      matchedIngredients,
+      estimatedCost: totalCost > 0 ? totalCost : 380,
+    },
+  ]
 }
 
 /**
- * Main AI Meal Plan Generator with Strict Constraints
+ * Main AI Meal Plan Generator with Enhanced Chain-of-Thought & Intent Grounding
  */
 export async function generateMealPlan(
   req: MealPlanRequest,
   catalog: CatalogProduct[]
 ): Promise<GeneratedRecipe[]> {
   const geminiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY
-  const isQuickMode = req.dietaryTag === 'Quick' || req.prompt.toLowerCase().includes('15') || req.prompt.toLowerCase().includes('quick')
+  const pLower = (req.prompt || '').toLowerCase()
+  const isQuickMode = req.dietaryTag === 'Quick' || pLower.includes('15') || pLower.includes('quick') || pLower.includes('fast')
+  const { detectedIngredients } = extractUserIntent(req.prompt)
 
   if (geminiKey) {
     try {
@@ -361,53 +645,68 @@ export async function generateMealPlan(
         .map((p) => `- ${p.name} (₱${p.basePrice}/${p.unit}, category: ${p.category})`)
         .join('\n')
 
-      const systemPrompt = `You are Chef Maria, an expert Filipino chef for FreshCart AI in the Philippines.
-Generate personalized meal recipes strictly adhering to the customer's constraints.
+      const systemPrompt = `You are Chef Maria, a master culinary chef specializing in authentic Filipino homestyle cooking (Lutong Bahay) for FreshCart in the Philippines.
+Your mission is to strictly follow user prompts and option settings, crafting culturally accurate Filipino recipes using real in-stock supermarket inventory.
 
-MANDATORY CONSTRAINTS:
-1. BUDGET LIMIT:
-   - Target budget: ${req.budgetLimit ? `STRICT MAXIMUM ₱${req.budgetLimit} TOTAL` : 'Flexible'}.
-   - The combined total cost of all recipes in the plan MUST NOT EXCEED ₱${req.budgetLimit || 1500}.
-   - If budget is low (e.g. ₱500), generate 1 or 2 focused, affordable dishes and do NOT over-allocate ingredients.
+CRITICAL INGREDIENT INCLUSION RULE:
+- Every generated recipe MUST include ALL complete ingredients necessary to cook the full dish (list 4 to 7 items from inventory).
+- Include the main protein (chicken, pork, beef, fish), all vegetables (kangkong, sitaw, sayote, tomatoes, cabbage, eggplant), aromatics (garlic/bawang, onions/sibuyas, ginger/luya), and seasonings (toyo, suka, calamansi, patis).
+- Do NOT generate a recipe with only 1 or 2 items. Customers need all required ingredients listed so they can easily buy, replace, or remove them.
 
-2. COOKING TIME & DIET FOCUS:
-   - Diet Focus: "${req.dietaryTag || 'General'}"
+STRICT THINKING & REASONING GUIDELINES:
+1. USER INTENT ADHERENCE (CRITICAL RULE #1):
+   - The user asked for: "${req.prompt}".
+   - ${detectedIngredients.length > 0 ? `Detected requested ingredients from user prompt: [${detectedIngredients.join(', ')}]. Recipe #1 MUST explicitly include these in its title, requiredIngredients list, and step-by-step instructions.` : 'Follow the homestyle craving directly.'}
+   - NEVER replace or deviate from the dish the user specifically asked for (e.g. If user types "Sinigang na Baboy with kamatis and kangkong", Recipe #1 MUST be Sinigang na Baboy containing pork, tomatoes, kangkong, onions, garlic, and calamansi).
+
+2. OPTIONS & CONSTRAINTS ENFORCEMENT:
+   - PORTIONS & SERVINGS: ${req.servings} people. For 2 persons, use 1 unit/pack of main meats and produce to avoid runaway costs. For 4-6 people, scale appropriately.
+   - BUDGET CEILING: ${req.budgetLimit ? `Strict Maximum Budget: ₱${req.budgetLimit}. The combined total cost of all recipes MUST NOT EXCEED ₱${req.budgetLimit}. Choose inventory items that fit under ₱${req.budgetLimit}.` : 'Flexible budget.'}
    ${
      isQuickMode
-       ? '- QUICK 15-MINUTE MEAL REQUIREMENT: Every recipe MUST have cookTimeMinutes <= 15 and prepTimeMinutes <= 10 (Total time <= 20 minutes!). Choose quick stir-fries, sautéed eggs/meats, or fast skillet dishes. DO NOT generate slow-simmered stews (no Caldereta, Nilaga, or Bulalo).'
+       ? '- QUICK 15-MINUTE MEALS: Total time (prep + cook) MUST be <= 15 minutes (cookTimeMinutes <= 10, prepTimeMinutes <= 5). Use quick stir-fries (gisado), flash-cooked chicken/pork strips, or sautéed egg/vegetable dishes. NO slow-simmered stews or 45-minute soups.'
        : ''
    }
+   - DIET FOCUS: "${req.dietaryTag || 'Homestyle Filipino'}". If Keto/Low Carb, avoid potatoes and rice. If Vegetarian, use 100% plant-based ingredients.
 
-3. SERVINGS ALLOCATION:
-   - Servings: ${req.servings} people.
-   - For 2 people: Allocate 1 unit of meat/staples. Keep ingredient quantities realistic and affordable.
-
-4. USER PROMPT FAITHFULNESS:
-   - Exact request: "${req.prompt}".
-   - If the user explicitly asks for a dish (e.g. "Chicken Adobo with Potato and Eggs"), Recipe #1 MUST BE EXACTLY THAT DISH.
+3. AUTHENTIC TAGALOG WORDINGS & CHEF WISDOM:
+   - Gisa Sequence: Bawang first until fragrant -> Sibuyas until translucent -> Kamatis / Luya until soft and juicy.
+   - For Adobo: Emphasize not stirring vinegar immediately so raw acidity mellows.
+   - For Sinigang: Emphasize crushing tomatoes into the broth for natural sourness.
+   - For Sawsawan: Always provide authentic Philippine dipping sauce pairing (e.g. "Toyo-Mansi na may Siling Labuyo", "Patis na may Calamansi").
 
 Store Inventory:
 ${catalogSummary}
 
-Respond ONLY with valid JSON in this exact schema without markdown:
+User Request:
+- Prompt / Dish: "${req.prompt}"
+- Dietary Focus: "${req.dietaryTag || 'Homestyle Filipino'}"
+- Portion Servings: ${req.servings} persons
+- Target Budget Limit: ${req.budgetLimit ? `₱${req.budgetLimit}` : 'Flexible'}
+
+Respond ONLY with valid JSON in this exact schema without markdown formatting or code fences:
 {
   "recipes": [
     {
       "id": "recipe-slug",
-      "title": "Exact Dish Title",
-      "description": "Appetizing 1-2 sentence description",
-      "prepTimeMinutes": ${isQuickMode ? 5 : 15},
-      "cookTimeMinutes": ${isQuickMode ? 10 : 25},
+      "title": "Authentic Filipino Dish Title in Tagalog/English",
+      "description": "Appetizing 1-2 sentence description in natural Filipino/English tone",
+      "prepTimeMinutes": ${isQuickMode ? 4 : 10},
+      "cookTimeMinutes": ${isQuickMode ? 8 : 25},
       "servings": ${req.servings},
       "caloriesPerServing": 380,
       "dietTags": ["Tag1", "Tag2"],
-      "chefTip": "Pinoy cooking tip",
-      "suggestedSawsawan": "e.g. Calamansi + Patis",
-      "instructions": ["Step 1...", "Step 2...", "Step 3..."],
+      "chefTip": "Practical Pinoy cooking wisdom (e.g. Sautéing tips, vinegar simmering rules)",
+      "suggestedSawsawan": "Authentic Pinoy dipping sauce pairing",
+      "instructions": [
+        "Step 1: Detailed instruction...",
+        "Step 2: Detailed instruction...",
+        "Step 3: Detailed instruction..."
+      ],
       "requiredIngredients": [
         {
-          "catalogProductName": "Exact product name from Store Inventory above",
-          "ingredientLabel": "Display label",
+          "catalogProductName": "Exact product name from Store Inventory list",
+          "ingredientLabel": "Display label (e.g. Fresh Chicken Cuts, Farm Fresh Eggs)",
           "quantity": 1
         }
       ]
@@ -424,7 +723,7 @@ Respond ONLY with valid JSON in this exact schema without markdown:
           contents: [{ parts: [{ text: systemPrompt }] }],
           generationConfig: {
             responseMimeType: 'application/json',
-            temperature: 0.2,
+            temperature: 0.15,
           },
         }),
       })
@@ -444,7 +743,6 @@ Respond ONLY with valid JSON in this exact schema without markdown:
                 for (const ing of rec.requiredIngredients) {
                   const matched = matchProduct(ing.catalogProductName || ing.ingredientLabel, catalog)
                   if (matched) {
-                    // For small servings (<=2), cap quantity at 1 to keep within budget
                     const rawQty = Number(ing.quantity) || 1
                     const qty = req.servings <= 2 ? Math.min(1, rawQty) : rawQty
                     totalCost += matched.basePrice * qty
@@ -461,29 +759,54 @@ Respond ONLY with valid JSON in this exact schema without markdown:
                 }
               }
 
-              const prepTime = isQuickMode ? Math.min(8, Number(rec.prepTimeMinutes) || 5) : Number(rec.prepTimeMinutes) || 15
-              const cookTime = isQuickMode ? Math.min(15, Number(rec.cookTimeMinutes) || 10) : Number(rec.cookTimeMinutes) || 25
+              // Post-processing guarantee: check if any user-explicitly mentioned ingredient was missed in Recipe #1
+              if (idx === 0 && detectedIngredients.length > 0) {
+                for (const userIng of detectedIngredients) {
+                  const alreadyMatched = matchedIngredients.some((m) =>
+                    m.productName.toLowerCase().includes(userIng) || m.ingredientLabel.toLowerCase().includes(userIng)
+                  )
+                  if (!alreadyMatched) {
+                    const extraMatch = matchProduct(userIng, catalog)
+                    if (extraMatch) {
+                      const extraQty = req.servings <= 2 ? 1 : Math.ceil(req.servings / 4)
+                      totalCost += extraMatch.basePrice * extraQty
+                      matchedIngredients.push({
+                        productId: extraMatch.id,
+                        productName: extraMatch.name,
+                        unit: extraMatch.unit,
+                        price: extraMatch.basePrice,
+                        quantityNeeded: extraQty,
+                        ingredientLabel: extraMatch.name,
+                        imageUrl: extraMatch.imageUrl,
+                      })
+                    }
+                  }
+                }
+              }
+
+              const prepTime = isQuickMode ? Math.min(5, Number(rec.prepTimeMinutes) || 4) : Number(rec.prepTimeMinutes) || 10
+              const cookTime = isQuickMode ? Math.min(10, Number(rec.cookTimeMinutes) || 8) : Number(rec.cookTimeMinutes) || 25
 
               return {
-                id: rec.id || `ai-recipe-${idx + 1}`,
-                title: rec.title || 'Filipino Specialty Dish',
+                id: rec.id || `recipe-${idx + 1}`,
+                title: rec.title || 'Lutong Bahay Specialty Dish',
                 description: rec.description || '',
                 prepTimeMinutes: prepTime,
                 cookTimeMinutes: cookTime,
                 servings: Number(rec.servings) || req.servings,
                 caloriesPerServing: Number(rec.caloriesPerServing) || 380,
-                dietTags: Array.isArray(rec.dietTags) ? rec.dietTags : [req.dietaryTag || 'Filipino Homestyle'],
-                instructions: Array.isArray(rec.instructions) ? rec.instructions : ['Cook according to recipe.'],
+                dietTags: Array.isArray(rec.dietTags) ? rec.dietTags : [req.dietaryTag || 'Lutong Bahay'],
+                instructions: Array.isArray(rec.instructions) ? rec.instructions : ['Lutuin ayon sa tradisyunal na paraan.'],
                 matchedIngredients,
                 estimatedCost: totalCost > 0 ? totalCost : 220,
-                chefTip: rec.chefTip || 'Serve hot with steamed rice.',
-                suggestedSawsawan: rec.suggestedSawsawan || 'Toyo + Calamansi',
+                chefTip: rec.chefTip || 'Ihain nang mainit kasama ang bagong saing na kanin.',
+                suggestedSawsawan: rec.suggestedSawsawan || 'Toyo-Mansi na may Siling Labuyo',
               }
             })
 
-            // Strict Budget Enforcement: If total exceeds user's budgetLimit, prune recipes or prune extra sides
+            // Strict budget ceiling enforcement
             if (req.budgetLimit && req.budgetLimit > 0) {
-              const maxBudget = req.budgetLimit * 1.05 // 5% grace
+              const maxBudget = req.budgetLimit * 1.05
               let runningTotal = 0
               const budgetedRecipes: GeneratedRecipe[] = []
 
@@ -502,7 +825,7 @@ Respond ONLY with valid JSON in this exact schema without markdown:
         }
       }
     } catch (err) {
-      console.error('[Gemini API] Error, fallback with strict constraints:', err)
+      console.error('[Gemini API] Error, fallback to homestyle engine:', err)
     }
   }
 
