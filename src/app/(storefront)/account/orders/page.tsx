@@ -307,8 +307,8 @@ export default function OrderHistoryPage() {
                         <span className="text-[11px] text-gray-400 block uppercase font-medium">
                           {order.fulfillmentType === 'delivery' ? '🚀 Home Delivery' : '🏪 Store Pickup'}
                         </span>
-                        <span className="text-lg font-extrabold text-emerald-700">
-                          ₱{order.total.toFixed(2)}
+                        <span className="text-base font-extrabold text-gray-900">
+                          ₱{Number(order.total).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </span>
                       </div>
 
@@ -359,7 +359,7 @@ export default function OrderHistoryPage() {
                             <div className="min-w-0 flex-1">
                               <span className="font-bold text-gray-900 block truncate">{prod?.name ?? 'Item'}</span>
                               <span className="text-gray-400 text-[11px]">
-                                {item.quantity} × ₱{item.priceAtOrder.toFixed(2)}
+                                {item.quantity} × ₱{Number(item.priceAtOrder).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </span>
                             </div>
                           </div>

@@ -21,7 +21,23 @@ export default async function AdminDashboardPage() {
   // 1. Fetch Orders Metrics
   const { data: rawOrders } = await supabase
     .from('Order')
-    .select('id, total, status, fulfillmentType, deliveryZip, createdAt, userId')
+    .select(`
+      id,
+      total,
+      status,
+      fulfillmentType,
+      deliveryZip,
+      createdAt,
+      userId,
+      User:userId (
+        id,
+        name,
+        email,
+        address,
+        phone,
+        zip
+      )
+    `)
     .order('createdAt', { ascending: false })
 
   const ordersToUpdate: { id: string; status: string }[] = []
@@ -100,7 +116,64 @@ export default async function AdminDashboardPage() {
     stockMap[b.productId] = (stockMap[b.productId] ?? 0) + (Number(b.quantity) || 0)
   }
 
-  const lowStockProducts = allProducts.filter((p) => (stockMap[p.id] ?? 0) <= 5)
+  // Combine near-expiry and low/out-of-stock items into an urgent watchlist
+  const watchlistItems: {
+    id: string
+    name: string
+    category: string
+    stock: number
+    type: 'out_of_stock' | 'low_stock' | 'near_expiry'
+    badgeText: string
+    badgeColor: string
+    daysLeft?: number
+  }[] = []
+
+  // 1. Add near-expiry items first (highest urgency)
+  for (const b of nearExpiryBatches) {
+    const prod = allProducts.find((p) => p.id === b.productId)
+    if (prod) {
+      const expDate = new Date(b.expiryDate).getTime()
+      const daysLeft = Math.ceil((expDate - now.getTime()) / (1000 * 60 * 60 * 24))
+      const stock = stockMap[prod.id] ?? 0
+
+      watchlistItems.push({
+        id: `${prod.id}_expiry_${b.id}`,
+        name: prod.name,
+        category: prod.category,
+        stock,
+        type: 'near_expiry',
+        daysLeft,
+        badgeText: daysLeft <= 2 ? `🔥 ${daysLeft}d left (Flash)` : `⚡ ${daysLeft}d left (Expiring)`,
+        badgeColor: daysLeft <= 2 ? 'bg-red-100 text-red-800 border-red-200' : 'bg-amber-100 text-amber-800 border-amber-200',
+      })
+    }
+  }
+
+  // 2. Add out-of-stock and low-stock items
+  for (const prod of allProducts) {
+    const stock = stockMap[prod.id] ?? 0
+    if (stock === 0) {
+      watchlistItems.push({
+        id: `${prod.id}_out`,
+        name: prod.name,
+        category: prod.category,
+        stock: 0,
+        type: 'out_of_stock',
+        badgeText: 'Out of Stock',
+        badgeColor: 'bg-red-50 text-red-600 border-red-200',
+      })
+    } else if (stock <= 5 && !watchlistItems.some((w) => w.name === prod.name && w.type === 'near_expiry')) {
+      watchlistItems.push({
+        id: `${prod.id}_low`,
+        name: prod.name,
+        category: prod.category,
+        stock,
+        type: 'low_stock',
+        badgeText: `${stock} left`,
+        badgeColor: 'bg-amber-50 text-amber-700 border-amber-200',
+      })
+    }
+  }
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
@@ -111,7 +184,7 @@ export default async function AdminDashboardPage() {
             Store Performance & Operations
           </h1>
           <p className="text-sm text-gray-500 mt-1">
-            Real-time grocery inventory, sales velocity, and fulfillment pipeline status.
+            Real-time grocery inventory, sales velocity, and fulfillment status.
           </p>
         </div>
 
@@ -151,11 +224,11 @@ export default async function AdminDashboardPage() {
           </div>
           <div className="mt-3 flex items-baseline gap-2">
             <span className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">
-              ₱{totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              ₱{totalRevenue.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           </div>
           <p className="mt-2 text-xs text-gray-500 font-medium">
-            From {allOrders.length} customer orders
+            From {allOrders.length.toLocaleString('en-PH')} customer orders
           </p>
         </div>
 
@@ -171,12 +244,12 @@ export default async function AdminDashboardPage() {
           </div>
           <div className="mt-3 flex items-baseline gap-2">
             <span className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">
-              {activeOrders.length}
+              {activeOrders.length.toLocaleString('en-PH')}
             </span>
             <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full">Pending</span>
           </div>
           <p className="mt-2 text-xs text-gray-500 font-medium">
-            {completedOrders.length} completed orders
+            {completedOrders.length.toLocaleString('en-PH')} completed orders
           </p>
         </div>
 
@@ -192,11 +265,11 @@ export default async function AdminDashboardPage() {
           </div>
           <div className="mt-3 flex items-baseline gap-2">
             <span className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">
-              ₱{totalValuation.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              ₱{totalValuation.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           </div>
           <p className="mt-2 text-xs text-gray-500 font-medium">
-            {totalInventoryUnits} units ({allProducts.length} active SKUs)
+            {totalInventoryUnits.toLocaleString('en-PH')} units ({allProducts.length.toLocaleString('en-PH')} products)
           </p>
         </div>
 
@@ -255,7 +328,7 @@ export default async function AdminDashboardPage() {
                 <thead className="bg-gray-50/80 text-gray-500 font-bold uppercase tracking-wider border-b border-gray-100">
                   <tr>
                     <th className="px-6 py-3">Order ID</th>
-                    <th className="px-4 py-3">Fulfillment</th>
+                    <th className="px-4 py-3">Customer & Delivery Address</th>
                     <th className="px-4 py-3">Status</th>
                     <th className="px-4 py-3">Total</th>
                     <th className="px-6 py-3 text-right">Action</th>
@@ -271,13 +344,22 @@ export default async function AdminDashboardPage() {
                       completed: 'bg-emerald-50 text-emerald-700 border-emerald-200',
                     }
 
+                    const isDelivery = order.fulfillmentType === 'delivery'
+                    const rawAddr = (order as any).User?.address || order.deliveryZip
+                    const displayAddress = isDelivery
+                      ? (rawAddr && rawAddr.length > 5 ? rawAddr : rawAddr ? `Metro Manila (Postal: ${rawAddr})` : 'Metro Manila Delivery')
+                      : 'FreshCart Central Hub (Store Pickup)'
+
                     return (
                       <tr key={order.id} className="hover:bg-gray-50/60 transition-colors">
                         <td className="px-6 py-3.5 font-mono font-semibold text-gray-800">
                           #{order.id.slice(0, 8)}
                         </td>
-                        <td className="px-4 py-3.5 capitalize text-gray-600 font-medium">
-                          {order.fulfillmentType} {order.deliveryZip ? `(${order.deliveryZip})` : ''}
+                        <td className="px-4 py-3.5 text-gray-700 font-medium max-w-xs">
+                          <p className="font-bold text-gray-900 truncate">{(order as any).User?.name || 'Customer'}</p>
+                          <p className="text-[11px] text-gray-500 truncate mt-0.5">
+                            {isDelivery ? `📍 ${displayAddress}` : `🏪 ${displayAddress}`}
+                          </p>
                         </td>
                         <td className="px-4 py-3.5">
                           <span
@@ -289,7 +371,7 @@ export default async function AdminDashboardPage() {
                           </span>
                         </td>
                         <td className="px-4 py-3.5 font-bold text-gray-900">
-                          ₱{Number(order.total).toFixed(2)}
+                          ₱{Number(order.total).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
                         <td className="px-6 py-3.5 text-right">
                           <Link
@@ -312,8 +394,15 @@ export default async function AdminDashboardPage() {
         <div className="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden flex flex-col">
           <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
             <div>
-              <h2 className="text-base font-bold text-gray-900">Inventory Watchlist</h2>
-              <p className="text-xs text-gray-500">Low stock and near-expiry items</p>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-bold text-gray-900">Inventory Watchlist</h2>
+                {watchlistItems.length > 0 && (
+                  <span className="text-[11px] font-black bg-red-100 text-red-800 px-2 py-0.5 rounded-full">
+                    {watchlistItems.length}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-gray-500 mt-0.5">Expiring batches and low stock alerts</p>
             </div>
             <Link
               href="/admin/inventory"
@@ -324,27 +413,25 @@ export default async function AdminDashboardPage() {
           </div>
 
           <div className="p-4 divide-y divide-gray-100 flex-1 overflow-y-auto max-h-96">
-            {lowStockProducts.length === 0 ? (
-              <div className="p-4 text-center text-xs text-gray-500">
-                All inventory levels are healthy!
+            {watchlistItems.length === 0 ? (
+              <div className="p-8 text-center text-xs text-gray-500">
+                <span className="text-xl block mb-1">🎉</span>
+                All grocery stock levels and expiration dates are healthy!
               </div>
             ) : (
-              lowStockProducts.slice(0, 6).map((prod) => {
-                const stock = stockMap[prod.id] ?? 0
+              watchlistItems.slice(0, 8).map((item) => {
                 return (
-                  <div key={prod.id} className="py-3 flex items-center justify-between">
-                    <div>
-                      <p className="text-xs font-bold text-gray-900 line-clamp-1">{prod.name}</p>
-                      <p className="text-[11px] text-gray-400 capitalize">{prod.category}</p>
+                  <div key={item.id} className="py-3 flex items-center justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold text-gray-900 truncate">{item.name}</p>
+                      <p className="text-[11px] text-gray-400 capitalize">
+                        {item.category} • {item.stock} in stock
+                      </p>
                     </div>
                     <span
-                      className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
-                        stock === 0
-                          ? 'bg-red-50 text-red-600 border border-red-200'
-                          : 'bg-amber-50 text-amber-700 border border-amber-200'
-                      }`}
+                      className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border shrink-0 ${item.badgeColor}`}
                     >
-                      {stock === 0 ? 'Out of Stock' : `${stock} left`}
+                      {item.badgeText}
                     </span>
                   </div>
                 )

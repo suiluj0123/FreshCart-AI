@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
@@ -164,13 +164,13 @@ export default function CartPage() {
                     <h3 className="font-bold text-gray-900 truncate text-base">{item.name}</h3>
                   </div>
                   <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-xs text-gray-400">₱{item.price.toFixed(2)} / {item.unit || 'unit'}</span>
+                    <span className="text-xs text-gray-400">₱{item.price.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} / {item.unit || 'unit'}</span>
                     <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200">
                       ✓ In Stock (FIFO Fresh)
                     </span>
                   </div>
                   <p className="text-sm font-extrabold text-emerald-700 mt-1">
-                    ₱{(item.price * item.quantity).toFixed(2)}
+                    ₱{(item.price * item.quantity).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
                 </div>
 
@@ -260,17 +260,17 @@ export default function CartPage() {
               <div className="space-y-2 text-xs border-t border-gray-100 pt-3">
                 <div className="flex justify-between text-gray-600">
                   <span>Subtotal</span>
-                  <span className="font-semibold">₱{cartTotal.toFixed(2)}</span>
+                  <span className="font-semibold">₱{cartTotal.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
                 <div className="flex justify-between text-gray-600">
                   <span>Estimated Delivery</span>
                   <span className="font-semibold">
-                    {deliveryFee > 0 ? `₱${deliveryFee.toFixed(2)}` : 'Free'}
+                    {deliveryFee > 0 ? `₱${deliveryFee.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'Free'}
                   </span>
                 </div>
                 <div className="flex justify-between text-base font-extrabold text-gray-900 border-t border-gray-100 pt-3">
                   <span>Grand Total</span>
-                  <span className="text-emerald-700">₱{grandTotal.toFixed(2)}</span>
+                  <span className="text-emerald-700">₱{grandTotal.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
               </div>
 

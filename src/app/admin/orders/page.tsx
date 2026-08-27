@@ -339,7 +339,7 @@ export default function AdminOrdersPage() {
                         </span>
                       </td>
                       <td className="px-4 py-4 font-black text-gray-900 text-sm">
-                        ₱{Number(order.total).toFixed(2)}
+                        ₱{Number(order.total).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-2">

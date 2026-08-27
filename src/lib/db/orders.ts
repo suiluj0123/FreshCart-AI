@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import type { CreateOrderPayload } from '@/types/cart'
+import { cache } from '@/lib/cache'
 
 function getAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -21,6 +22,31 @@ function getAdminClient() {
 
 export async function createOrderInDb(payload: CreateOrderPayload) {
   const supabase = getAdminClient()
+
+  // 1. Pre-validate stock availability for all items
+  for (const item of payload.items) {
+    const { data: batches } = await supabase
+      .from('InventoryBatch')
+      .select('id, quantity')
+      .eq('productId', item.productId)
+      .gt('quantity', 0)
+
+    const totalAvailable = (batches ?? []).reduce((sum, b) => sum + Number(b.quantity), 0)
+    if (totalAvailable < item.quantity) {
+      const { data: prod } = await supabase
+        .from('Product')
+        .select('name')
+        .eq('id', item.productId)
+        .maybeSingle()
+
+      const prodName = prod?.name || 'Selected grocery item'
+      throw new Error(
+        totalAvailable === 0
+          ? `Sorry, "${prodName}" is currently out of stock.`
+          : `Sorry, only ${totalAvailable} unit(s) of "${prodName}" remain in stock. Please adjust your cart quantity.`
+      )
+    }
+  }
 
   let orderUserId: string | null = payload.userId || null
 
@@ -113,6 +139,9 @@ export async function createOrderInDb(payload: CreateOrderPayload) {
       }
     }
   }
+
+  // Invalidate product catalog cache so live stock updates immediately
+  cache.clear()
 
   return {
     orderId: order.id,

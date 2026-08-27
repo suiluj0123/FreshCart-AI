@@ -19,14 +19,26 @@ export interface InventoryBatch {
   receivedAt: string
 }
 
-// Product joined with aggregated stock from all active InventoryBatches
+// Product joined with aggregated stock from all active InventoryBatches and dynamic markdown
 export interface ProductWithStock extends Product {
   totalStock: number
+  effectivePrice?: number
+  discountPct?: number
+  markdownTier?: 'none' | 'early_clearance' | 'special_clearance' | 'flash_clearance'
+  markdownBadge?: string | null
+  isClearance?: boolean
+  daysUntilExpiry?: number | null
 }
 
 // Full product detail including all its inventory batches
 export interface ProductDetail extends Product {
   totalStock: number
+  effectivePrice?: number
+  discountPct?: number
+  markdownTier?: 'none' | 'early_clearance' | 'special_clearance' | 'flash_clearance'
+  markdownBadge?: string | null
+  isClearance?: boolean
+  daysUntilExpiry?: number | null
   batches: InventoryBatch[]
 }
 
@@ -35,6 +47,7 @@ export interface ProductFilters {
   category?: string
   search?: string
   sort?: 'price_asc' | 'price_desc'
+  clearanceOnly?: boolean
 }
 
 // Category options matching authentic Philippine supermarket aisles

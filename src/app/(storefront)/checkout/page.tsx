@@ -483,10 +483,10 @@ function CheckoutContent() {
                   <div key={item.id} className="pt-3 flex items-center justify-between text-xs">
                     <div className="truncate pr-2">
                       <span className="font-bold text-gray-900 block truncate">{item.name}</span>
-                      <span className="text-gray-400">Qty: {item.quantity} × ₱{item.price.toFixed(2)}</span>
+                      <span className="text-gray-400">Qty: {item.quantity} × ₱{item.price.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
                     <span className="font-extrabold text-gray-900 shrink-0">
-                      ₱{(item.quantity * item.price).toFixed(2)}
+                      ₱{(item.quantity * item.price).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                   </div>
                 ))}
@@ -495,17 +495,17 @@ function CheckoutContent() {
               <div className="space-y-2 text-xs border-t border-gray-100 pt-4">
                 <div className="flex justify-between text-gray-600">
                   <span>Subtotal</span>
-                  <span className="font-semibold">₱{cartTotal.toFixed(2)}</span>
+                  <span className="font-semibold">₱{cartTotal.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
                 <div className="flex justify-between text-gray-600">
                   <span>Fulfillment</span>
                   <span className="font-semibold">
-                    {deliveryFee > 0 ? `₱${deliveryFee.toFixed(2)}` : 'Free'}
+                    {deliveryFee > 0 ? `₱${deliveryFee.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'Free'}
                   </span>
                 </div>
                 <div className="flex justify-between text-base font-extrabold text-gray-900 border-t border-gray-100 pt-3">
                   <span>Grand Total</span>
-                  <span className="text-emerald-700">₱{grandTotal.toFixed(2)}</span>
+                  <span className="text-emerald-700">₱{grandTotal.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
               </div>
 

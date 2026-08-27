@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import type { ProductWithStock, ProductDetail, ProductFilters } from '@/types/product'
 import { cache } from '@/lib/cache'
+import { calculateMarkdown } from '@/lib/pricing/markdown'
 
 /**
  * Creates a fresh service-role Supabase client at call time.
@@ -87,29 +88,54 @@ export async function getProducts(filters: ProductFilters = {}): Promise<Product
     if (products.length === 0) return []
 
     // Fetch aggregated stock for all returned products in one query
+    // Fetch aggregated stock and earliest FEFO expiry for all returned products in one query
     const productIds = products.map((p) => p.id)
     const { data: batches } = await supabase
       .from('InventoryBatch')
-      .select('productId, quantity')
+      .select('productId, quantity, expiryDate')
       .in('productId', productIds)
       .gt('quantity', 0)
+      .order('expiryDate', { ascending: true })
 
-    // Sum stock per product
+    // Map stock and earliest expiry per product
     const stockMap: Record<string, number> = {}
+    const earliestExpiryMap: Record<string, string> = {}
+
     for (const batch of batches ?? []) {
-      stockMap[batch.productId] = (stockMap[batch.productId] ?? 0) + batch.quantity
+      stockMap[batch.productId] = (stockMap[batch.productId] ?? 0) + Number(batch.quantity)
+      if (!earliestExpiryMap[batch.productId] && batch.expiryDate) {
+        earliestExpiryMap[batch.productId] = batch.expiryDate
+      }
     }
 
-    return products.map((p) => ({
-      ...p,
-      imageUrl: p.imageUrl ?? null,
-      totalStock: stockMap[p.id] ?? 0,
-    }))
+    const mappedProducts: ProductWithStock[] = products.map((p) => {
+      const totalStock = stockMap[p.id] ?? 0
+      const earliestExpiry = earliestExpiryMap[p.id] || null
+      const markdown = calculateMarkdown(p.basePrice, totalStock > 0 ? earliestExpiry : null)
+
+      return {
+        ...p,
+        imageUrl: p.imageUrl ?? null,
+        totalStock,
+        effectivePrice: markdown.effectivePrice,
+        discountPct: markdown.discountPct,
+        markdownTier: markdown.markdownTier,
+        markdownBadge: markdown.markdownBadge,
+        isClearance: markdown.isClearance,
+        daysUntilExpiry: markdown.daysUntilExpiry,
+      }
+    })
+
+    if (filters.clearanceOnly) {
+      return mappedProducts.filter((p) => p.isClearance && p.totalStock > 0)
+    }
+
+    return mappedProducts
   })
 }
 
 /**
- * Fetch a single product by ID with all its inventory batches.
+ * Fetch a single product by ID with all its inventory batches and dynamic markdown pricing.
  * Server-only — never call this from a Client Component.
  */
 export async function getProductById(id: string): Promise<ProductDetail | null> {
@@ -135,13 +161,22 @@ export async function getProductById(id: string): Promise<ProductDetail | null> 
       .gt('quantity', 0)
       .order('expiryDate', { ascending: true })
 
-    const totalStock = (batches ?? []).reduce((sum, b) => sum + b.quantity, 0)
+    const activeBatches = batches ?? []
+    const totalStock = activeBatches.reduce((sum, b) => sum + Number(b.quantity), 0)
+    const earliestExpiry = activeBatches[0]?.expiryDate || null
+    const markdown = calculateMarkdown(product.basePrice, totalStock > 0 ? earliestExpiry : null)
 
     return {
       ...product,
       imageUrl: product.imageUrl ?? null,
       totalStock,
-      batches: batches ?? [],
+      effectivePrice: markdown.effectivePrice,
+      discountPct: markdown.discountPct,
+      markdownTier: markdown.markdownTier,
+      markdownBadge: markdown.markdownBadge,
+      isClearance: markdown.isClearance,
+      daysUntilExpiry: markdown.daysUntilExpiry,
+      batches: activeBatches,
     }
   })
 }

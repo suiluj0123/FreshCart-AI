@@ -1,5 +1,6 @@
-﻿import { NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { requireAdmin } from '@/lib/auth/rbac'
 
 function getAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -15,6 +16,11 @@ export async function PATCH(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const authCheck = await requireAdmin()
+    if (!authCheck.authorized) {
+      return NextResponse.json({ error: authCheck.error }, { status: 403 })
+    }
+
     const { id } = await context.params
     const body = await request.json()
     const { status } = body
