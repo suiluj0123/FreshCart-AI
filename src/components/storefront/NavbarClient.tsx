@@ -389,37 +389,41 @@ export default function NavbarClient({ user, initialUser, initialActiveOrderId }
         </div>
       </div>
 
-      {/* ── RESPONSIVE MOBILE & TABLET SLIDE-OVER SIDEBAR DRAWER ── */}
+      {/* ── RESPONSIVE MOBILE & TABLET FULL-HEIGHT SLIDE-OVER SIDEBAR DRAWER ── */}
       {mobileDrawerOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden flex">
-          {/* Backdrop */}
+        <div className="fixed inset-0 z-[9999] lg:hidden">
+          {/* Backdrop Overlay */}
           <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity"
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity duration-300"
             onClick={() => setMobileDrawerOpen(false)}
+            aria-hidden="true"
           />
 
-          {/* Slide-over Drawer Panel */}
-          <div className="relative w-full max-w-xs bg-white h-full shadow-2xl flex flex-col z-10 transform transition-transform duration-300 ease-in-out">
+          {/* Full-Height Drawer Panel */}
+          <div className="fixed top-0 bottom-0 left-0 z-10 w-[85vw] max-w-xs bg-white shadow-2xl flex flex-col h-[100dvh] overflow-hidden transform transition-transform duration-300 ease-in-out border-r border-gray-200">
             {/* Drawer Header */}
-            <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+            <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-white shrink-0">
               <Link
                 href="/"
                 onClick={() => setMobileDrawerOpen(false)}
                 className="flex items-center gap-2"
               >
-                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-600 text-white font-bold shadow-xs">
-                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-600 text-white font-bold shadow-sm shrink-0">
+                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
                     <line x1="3" y1="6" x2="21" y2="6" />
                     <path d="M16 10a4 4 0 0 1-8 0" />
                   </svg>
                 </div>
-                <span className="font-black text-gray-900 text-base">FreshCart <span className="text-emerald-600">AI</span></span>
+                <span className="font-extrabold text-gray-900 text-lg tracking-tight">
+                  FreshCart <span className="text-emerald-600">AI</span>
+                </span>
               </Link>
 
               <button
+                type="button"
                 onClick={() => setMobileDrawerOpen(false)}
-                className="p-1.5 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-200/50 transition-colors"
+                className="p-2 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
                 aria-label="Close navigation"
               >
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -430,7 +434,7 @@ export default function NavbarClient({ user, initialUser, initialActiveOrderId }
 
             {/* Active Order Banner in Drawer (If Any) */}
             {activeOrderId && (
-              <div className="p-3 bg-amber-50 border-b border-amber-100">
+              <div className="p-3 bg-amber-50 border-b border-amber-100 shrink-0">
                 <Link
                   href={`/orders/${activeOrderId}`}
                   onClick={() => setMobileDrawerOpen(false)}
@@ -440,13 +444,13 @@ export default function NavbarClient({ user, initialUser, initialActiveOrderId }
                     <span className="h-2 w-2 rounded-full bg-amber-500 animate-ping"></span>
                     {pill.text}
                   </span>
-                  <span className="text-[10px] text-amber-700 underline">Track ➔</span>
+                  <span className="text-[11px] text-amber-700 font-bold underline">Track ➔</span>
                 </Link>
               </div>
             )}
 
-            {/* Navigation Tabs List */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-1">
+            {/* Navigation Tabs List (Scrollable Area) */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-1 bg-white">
               <p className="text-[10px] font-black uppercase tracking-wider text-gray-400 px-3 py-1 mb-1">
                 Storefront Navigation
               </p>
@@ -458,14 +462,14 @@ export default function NavbarClient({ user, initialUser, initialActiveOrderId }
                     key={label}
                     href={href}
                     onClick={() => setMobileDrawerOpen(false)}
-                    className={`flex items-center justify-between rounded-xl px-3.5 py-2.5 text-sm font-semibold transition-all ${
+                    className={`flex items-center justify-between rounded-xl px-3.5 py-3 text-sm font-semibold transition-all ${
                       isActive
-                        ? 'bg-emerald-50 text-emerald-800 font-bold border border-emerald-200/80 shadow-2xs'
+                        ? 'bg-emerald-50 text-emerald-800 font-bold border border-emerald-200 shadow-2xs'
                         : 'text-gray-700 hover:bg-gray-50 hover:text-emerald-700'
                     }`}
                   >
                     <span>{label}</span>
-                    {isActive && <span className="h-1.5 w-1.5 rounded-full bg-emerald-600"></span>}
+                    {isActive && <span className="h-2 w-2 rounded-full bg-emerald-600"></span>}
                   </Link>
                 )
               })}
@@ -477,19 +481,19 @@ export default function NavbarClient({ user, initialUser, initialActiveOrderId }
                 <Link
                   href="/cart"
                   onClick={() => setMobileDrawerOpen(false)}
-                  className="flex items-center justify-between rounded-xl px-3.5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                  className="flex items-center justify-between rounded-xl px-3.5 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50"
                 >
                   <span>Shopping Cart</span>
                   {cartCount > 0 && (
                     <span className="bg-emerald-600 text-white text-[11px] font-bold px-2 py-0.5 rounded-full">
-                      {cartCount} items
+                      {cartCount} {cartCount === 1 ? 'item' : 'items'}
                     </span>
                   )}
                 </Link>
                 <Link
                   href="/account/orders"
                   onClick={() => setMobileDrawerOpen(false)}
-                  className="flex items-center justify-between rounded-xl px-3.5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                  className="flex items-center justify-between rounded-xl px-3.5 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50"
                 >
                   <span>Order History</span>
                 </Link>
@@ -497,11 +501,11 @@ export default function NavbarClient({ user, initialUser, initialActiveOrderId }
 
               {/* Admin Shortcuts in Drawer (If Admin/Staff) */}
               {currentUser && (currentUser.role === 'admin' || currentUser.role === 'system_admin' || currentUser.role === 'systemadmin') && (
-                <div className="pt-2">
+                <div className="pt-3">
                   <Link
                     href="/admin"
                     onClick={() => setMobileDrawerOpen(false)}
-                    className="flex items-center justify-between rounded-xl bg-gray-900 text-emerald-400 p-3 text-xs font-black shadow-sm hover:bg-gray-800 transition-colors"
+                    className="flex items-center justify-between rounded-xl bg-gray-900 text-emerald-400 p-3.5 text-xs font-black shadow-sm hover:bg-gray-800 transition-colors"
                   >
                     <span className="flex items-center gap-2">
                       <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
@@ -513,17 +517,17 @@ export default function NavbarClient({ user, initialUser, initialActiveOrderId }
               )}
             </div>
 
-            {/* Drawer Footer: User Profile or Sign In */}
-            <div className="p-4 border-t border-gray-100 bg-gray-50/70">
+            {/* Drawer Footer: User Profile or Sign In (Fixed at bottom) */}
+            <div className="p-4 border-t border-gray-100 bg-gray-50 shrink-0">
               {currentUser ? (
                 <div className="space-y-3">
-                  <div className="flex items-center gap-2.5">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-600 text-white font-bold text-sm shadow-xs shrink-0">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-600 text-white font-bold text-base shadow-sm shrink-0">
                       {currentUser.name?.charAt(0).toUpperCase() || currentUser.email.charAt(0).toUpperCase()}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs font-black text-gray-900 truncate">{currentUser.name || 'User'}</p>
-                      <p className="text-[11px] text-gray-400 truncate">{currentUser.email}</p>
+                      <p className="text-xs font-bold text-gray-900 truncate">{currentUser.name || 'User'}</p>
+                      <p className="text-[11px] text-gray-500 truncate">{currentUser.email}</p>
                     </div>
                   </div>
 
@@ -531,31 +535,34 @@ export default function NavbarClient({ user, initialUser, initialActiveOrderId }
                     <Link
                       href="/account"
                       onClick={() => setMobileDrawerOpen(false)}
-                      className="flex-1 text-center py-2 rounded-xl bg-white border border-gray-200 text-xs font-bold text-gray-700 hover:bg-gray-50 transition-colors"
+                      className="flex-1 text-center py-2.5 rounded-xl bg-white border border-gray-200 text-xs font-bold text-gray-700 hover:bg-gray-50 transition-colors"
                     >
                       Profile
                     </Link>
                     <button
+                      type="button"
                       onClick={handleSignOut}
-                      className="flex-1 text-center py-2 rounded-xl bg-red-50 border border-red-100 text-xs font-bold text-red-600 hover:bg-red-100 transition-colors cursor-pointer"
+                      className="flex-1 text-center py-2.5 rounded-xl bg-red-50 border border-red-100 text-xs font-bold text-red-600 hover:bg-red-100 transition-colors cursor-pointer"
                     >
                       Sign Out
                     </button>
                   </div>
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-2.5">
                   <button
+                    type="button"
                     onClick={() => {
                       setMobileDrawerOpen(false)
                       setLoginModalMode('login')
                       setLoginModalOpen(true)
                     }}
-                    className="w-full py-2.5 rounded-xl border border-gray-300 bg-white text-xs font-bold text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
+                    className="w-full py-2.5 rounded-xl border border-gray-300 bg-white text-xs font-bold text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer shadow-2xs"
                   >
                     Sign In
                   </button>
                   <button
+                    type="button"
                     onClick={() => {
                       setMobileDrawerOpen(false)
                       setLoginModalMode('register')
