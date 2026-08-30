@@ -6,7 +6,17 @@ FreshCart is a full-stack grocery web app built to make grocery shopping easier 
 
 ## About the Project
 
-I built FreshCart to solve common problems in grocery shopping and store inventory. For shoppers, it helps them find ingredients and plan weekly meals based on their budget and diet. For store owners, it tracks expiring produce in real time, creates discount bundles for items close to expiry, and keeps an eye on daily sales and orders.
+FreshCart was built to solve common problems in grocery shopping and store inventory. For shoppers, it helps them find ingredients and plan weekly meals based on their budget and diet. For store owners, it tracks expiring produce in real time, creates discount bundles for items close to expiry, and keeps an eye on daily sales and orders.
+
+---
+
+## Generative AI Highlights
+
+* **Gemini 3.7 Flash (In-App Generative AI Engine):**
+  Powers the customer meal planner and recipe assistant. It generates customized weekly meal plans, calculates ingredient quantities, suggests smart substitutions for out-of-stock items, and automatically bundles recipe ingredients directly into the shopping cart.
+
+* **Claude Sonnet 4.6 (Architecture & Development):**
+  Utilized for full-stack system architecture, TypeScript type safety, database schema design, FIFO inventory algorithms, and security rate-limiting implementation.
 
 ---
 
@@ -15,7 +25,7 @@ I built FreshCart to solve common problems in grocery shopping and store invento
 ### Customer Storefront
 
 * **Product Catalog:** Browse groceries by category (vegetables, fruits, meat, dairy, pantry) with real-time stock and prices.
-* **Meal Planner:** Lets users generate meal plans for the week, calculates needed ingredients, and adds missing items straight to the cart.
+* **AI Meal Planner:** Lets users generate meal plans for the week, calculates needed ingredients, and adds missing items straight to the cart.
 * **Item Substitutions:** Suggests alternative ingredients if an item is out of stock or if the user has dietary preferences.
 * **Shopping Cart & Checkout:** Supports Cash on Delivery (COD) and online payments, with options for home delivery or store pickup.
 * **Order History & Tracking:** Users can view their past orders and track current order status in real time.
@@ -39,7 +49,7 @@ I built FreshCart to solve common problems in grocery shopping and store invento
 * **Frontend & Backend:** Next.js 16 (App Router), React, TypeScript
 * **Styling:** Tailwind CSS
 * **Database & Auth:** Supabase (PostgreSQL, Supabase Auth)
-* **Meal Planning API:** Google Gemini API
+* **AI Models & Engines:** Gemini 3.7 Flash, Claude Sonnet 4.6
 * **Hosting:** Vercel
 
 ---
