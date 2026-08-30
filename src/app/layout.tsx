@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'FreshCart AI — Intelligent Grocery E-Commerce & Store Operations',
+  title: 'FreshCart AI — Online Grocery & Store Management System',
   description: 'Smart grocery e-commerce, AI meal planning, and fresh produce inventory management.',
   icons: {
     icon: [
