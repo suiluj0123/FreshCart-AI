@@ -13,9 +13,16 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'FreshCart AI — Smart Grocery Delivery in the Philippines',
-  description:
-    'AI-powered grocery delivery with personalized meal planning. Fresh local ingredients delivered to your door across Metro Manila.',
+  title: 'FreshCart AI — Intelligent Grocery E-Commerce & Store Operations',
+  description: 'Smart grocery e-commerce, AI meal planning, and fresh produce inventory management.',
+  icons: {
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+    ],
+    apple: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+    ],
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
