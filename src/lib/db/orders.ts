@@ -64,6 +64,7 @@ export async function createOrderInDb(payload: CreateOrderPayload) {
 
   const orderInsertData: any = {
     fulfillmentType: payload.fulfillmentType,
+    paymentMethod: payload.paymentMethod || 'cash',
     total: payload.total,
     deliveryZip: payload.deliveryZip ? payload.deliveryZip.trim().slice(0, 20) : null,
     status: 'placed',
@@ -86,11 +87,23 @@ export async function createOrderInDb(payload: CreateOrderPayload) {
     }
   }
 
-  const { data: order, error: orderError } = await supabase
+  let orderRes = await supabase
     .from('Order')
     .insert(orderInsertData)
     .select('id, status, total, createdAt')
     .single()
+
+  // If column doesn't exist yet, retry without paymentMethod
+  if (orderRes.error && orderRes.error.message?.includes('paymentMethod')) {
+    delete orderInsertData.paymentMethod
+    orderRes = await supabase
+      .from('Order')
+      .insert(orderInsertData)
+      .select('id, status, total, createdAt')
+      .single()
+  }
+
+  const { data: order, error: orderError } = orderRes
 
   if (orderError || !order) {
     console.error('[createOrderInDb] Order insert error:', orderError?.message)

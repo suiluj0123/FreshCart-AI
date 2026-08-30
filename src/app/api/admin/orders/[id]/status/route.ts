@@ -43,6 +43,24 @@ export async function PATCH(
       return NextResponse.json({ error: updateErr.message }, { status: 500 })
     }
 
+    // Log to SystemAuditLog
+    try {
+      await supabase.from('SystemAuditLog').insert({
+        category: 'orders',
+        action: 'ORDER_STATUS_CHANGED',
+        entityType: 'Order',
+        entityId: id,
+        actorName: authCheck.profile?.name || authCheck.user?.email?.split('@')[0] || 'Admin',
+        actorEmail: authCheck.profile?.email || authCheck.user?.email || 'admin@freshcart.ph',
+        actorRole: authCheck.profile?.role || 'admin',
+        details: `Order #${id.slice(0, 8)} status changed to ${status}`,
+        newState: { status },
+        status: status === 'cancelled' ? 'danger' : status === 'completed' ? 'success' : 'info',
+      })
+    } catch {
+      // Non-blocking
+    }
+
     return NextResponse.json({
       success: true,
       order: updatedOrder,

@@ -95,8 +95,9 @@ export async function POST(request: Request) {
 
     const supabase = getAdminClient()
 
-    // 1. Fetch batch details if batchId provided
+    // 1. Fetch batch details and auto-deduct FIFO
     let costPrice = 0
+    let targetBatchId = batchId || null
     if (batchId) {
       const { data: batch } = await supabase
         .from('InventoryBatch')
@@ -114,6 +115,30 @@ export async function POST(request: Request) {
           .update({ quantity: newBatchQty })
           .eq('id', batchId)
       }
+    } else {
+      // Find oldest active batches for this product (FIFO)
+      const { data: oldestBatches } = await supabase
+        .from('InventoryBatch')
+        .select('id, costPrice, quantity')
+        .eq('productId', productId)
+        .gt('quantity', 0)
+        .order('expiryDate', { ascending: true })
+
+      if (oldestBatches && oldestBatches.length > 0) {
+        targetBatchId = oldestBatches[0].id
+        costPrice = Number(oldestBatches[0].costPrice) || 0
+        let remainingToDeduct = numQty
+        for (const b of oldestBatches) {
+          if (remainingToDeduct <= 0) break
+          const deduct = Math.min(Number(b.quantity), remainingToDeduct)
+          await supabase.from('InventoryBatch').update({ quantity: Number(b.quantity) - deduct }).eq('id', b.id)
+          remainingToDeduct -= deduct
+        }
+      } else {
+        // Fallback to product basePrice * 0.70
+        const { data: prod } = await supabase.from('Product').select('basePrice').eq('id', productId).maybeSingle()
+        costPrice = prod?.basePrice ? Number(prod.basePrice) * 0.70 : 50
+      }
     }
 
     const totalLossValuation = Math.round(numQty * costPrice * 100) / 100
@@ -124,7 +149,7 @@ export async function POST(request: Request) {
       .from('SpoilageLog')
       .insert({
         productId,
-        batchId: batchId || null,
+        batchId: targetBatchId,
         quantity: numQty,
         costPrice,
         totalLossValuation,

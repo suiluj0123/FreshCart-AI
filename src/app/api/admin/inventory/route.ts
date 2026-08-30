@@ -77,8 +77,10 @@ export async function GET() {
     let totalValuation = 0
     let totalStockUnits = 0
     let lowStockCount = 0
+    let outOfStockCount = 0
     let nearExpiryBatchesCount = 0
     let nearExpiryProductsCount = 0
+    let expiredProductsCount = 0
     let expiredBatchesCount = expiredBatchesToZero.length
 
     const enrichedProducts = allProducts.map((prod) => {
@@ -91,6 +93,24 @@ export async function GET() {
       let hasNearExpiry = false
       let nearExpiryUnits = 0
       let earliestNearExpiryDate: string | null = null
+
+      let hasExpiredBatches = false
+      let expiredBatchesCountForProduct = 0
+
+      for (const b of batches) {
+        const expDate = new Date(b.expiryDate)
+        if (expDate < now || (b as any).wasAutoPurged) {
+          hasExpiredBatches = true
+          expiredBatchesCountForProduct++
+        }
+      }
+
+      // A product is only considered "Expired" if it currently has NO active stock because its batches expired
+      const isExpired = totalStock === 0 && hasExpiredBatches && batches.length > 0
+
+      if (isExpired) {
+        expiredProductsCount++
+      }
 
       for (const b of activeBatches) {
         const qty = Number(b.quantity)
@@ -116,7 +136,9 @@ export async function GET() {
       totalValuation += stockValuation
       totalStockUnits += totalStock
 
-      if (totalStock <= 10) {
+      if (totalStock === 0) {
+        outOfStockCount++
+      } else if (totalStock <= 10) {
         lowStockCount++
       }
 
@@ -125,7 +147,13 @@ export async function GET() {
 
       // Stock health badge
       const healthStatus =
-        totalStock === 0 ? 'out_of_stock' : totalStock <= 10 ? 'low_stock' : 'healthy'
+        isExpired
+          ? 'expired'
+          : totalStock === 0
+          ? 'out_of_stock'
+          : totalStock <= 10
+          ? 'low_stock'
+          : 'healthy'
 
       const markdown = calculateMarkdown(prod.basePrice, totalStock > 0 ? earliestNearExpiryDate || activeBatches[0]?.expiryDate : null)
 
@@ -139,6 +167,9 @@ export async function GET() {
         hasNearExpiry,
         nearExpiryUnits,
         earliestNearExpiryDate,
+        isExpired,
+        hasExpiredBatches,
+        expiredBatchesCount: expiredBatchesCountForProduct,
         effectivePrice: markdown.effectivePrice,
         discountPct: markdown.discountPct,
         markdownTier: markdown.markdownTier,
@@ -156,8 +187,10 @@ export async function GET() {
         totalStockUnits,
         totalValuation,
         lowStockCount,
+        outOfStockCount,
         nearExpiryBatchesCount,
         nearExpiryProductsCount,
+        expiredProductsCount,
         expiredBatchesAutoPurged: expiredBatchesCount,
       },
       products: enrichedProducts,

@@ -114,6 +114,19 @@ export default function NavbarClient({ user, initialUser, initialActiveOrderId }
   }, [initialUser, supabase])
 
   const handleSignOut = async () => {
+    if (currentUser?.email) {
+      fetch('/api/auth/log-event', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: currentUser.email,
+          eventType: 'User Logout',
+          status: 'success',
+          userName: currentUser.name,
+          role: currentUser.role,
+        }),
+      }).catch(() => {})
+    }
     await supabase.auth.signOut()
     setCurrentUser(null)
     setMenuOpen(false)

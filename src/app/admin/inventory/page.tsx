@@ -29,6 +29,9 @@ interface ProductItem {
   hasNearExpiry: boolean
   nearExpiryUnits: number
   earliestNearExpiryDate: string | null
+  isExpired?: boolean
+  hasExpiredBatches?: boolean
+  expiredBatchesCount?: number
   effectivePrice?: number
   discountPct?: number
   markdownTier?: 'none' | 'early_clearance' | 'special_clearance' | 'flash_clearance'
@@ -43,8 +46,10 @@ interface InventoryMetrics {
   totalStockUnits: number
   totalValuation: number
   lowStockCount: number
+  outOfStockCount: number
   nearExpiryBatchesCount: number
   nearExpiryProductsCount: number
+  expiredProductsCount: number
   expiredBatchesAutoPurged: number
 }
 
@@ -96,14 +101,16 @@ export default function AdminInventoryPage() {
     totalStockUnits: 0,
     totalValuation: 0,
     lowStockCount: 0,
+    outOfStockCount: 0,
     nearExpiryBatchesCount: 0,
     nearExpiryProductsCount: 0,
+    expiredProductsCount: 0,
     expiredBatchesAutoPurged: 0,
   })
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedDept, setSelectedDept] = useState('all')
-  const [statusFilter, setStatusFilter] = useState<'all' | 'near_expiry' | 'low_stock' | 'out_of_stock'>('all')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'near_expiry' | 'expired' | 'low_stock' | 'out_of_stock'>('all')
   const [expandedProductId, setExpandedProductId] = useState<string | null>(null)
 
   // Spoilage Logs State
@@ -186,8 +193,10 @@ export default function AdminInventoryPage() {
           totalStockUnits: 0,
           totalValuation: 0,
           lowStockCount: 0,
+          outOfStockCount: 0,
           nearExpiryBatchesCount: 0,
           nearExpiryProductsCount: 0,
+          expiredProductsCount: 0,
           expiredBatchesAutoPurged: 0,
         })
       }
@@ -437,7 +446,7 @@ export default function AdminInventoryPage() {
     }
   }
 
-  // Filtered Products
+  // Filtered Products (Strictly Separated Low Stock vs Out of Stock vs Expired)
   const filteredProducts = products.filter((p) => {
     const matchesSearch =
       p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -451,11 +460,13 @@ export default function AdminInventoryPage() {
       statusFilter === 'all'
         ? true
         : statusFilter === 'near_expiry'
-        ? p.hasNearExpiry
+        ? p.hasNearExpiry && p.totalStock > 0
+        : statusFilter === 'expired'
+        ? !!p.isExpired
         : statusFilter === 'low_stock'
-        ? p.healthStatus === 'low_stock'
+        ? p.totalStock > 0 && p.totalStock <= 10
         : statusFilter === 'out_of_stock'
-        ? p.healthStatus === 'out_of_stock'
+        ? p.totalStock === 0 && !p.isExpired
         : true
 
     return matchesSearch && matchesDept && matchesStatus
@@ -582,11 +593,11 @@ export default function AdminInventoryPage() {
             </div>
 
             <div className="bg-white rounded-2xl p-4 border border-gray-200 shadow-xs">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Running Low</p>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Running Low (1–10)</p>
               <p className={`text-2xl font-black mt-1 ${metrics.lowStockCount > 0 ? 'text-amber-600' : 'text-gray-900'}`}>
                 {metrics.lowStockCount.toLocaleString('en-PH')}
               </p>
-              <p className="text-[10px] text-amber-600/80 mt-0.5">10 or fewer items left</p>
+              <p className="text-[10px] text-amber-600/80 mt-0.5">1 to 10 items left (excludes 0)</p>
             </div>
 
             <div className="bg-white rounded-2xl p-4 border border-gray-200 shadow-xs">
@@ -615,7 +626,7 @@ export default function AdminInventoryPage() {
             ))}
           </div>
 
-          {/* Filter Pills */}
+          {/* Filter Pills with Dedicated Expired and Strictly Separated Low Stock vs Out of Stock */}
           <div className="flex items-center gap-2 text-xs font-bold flex-wrap">
             <button
               onClick={() => setStatusFilter('all')}
@@ -625,7 +636,7 @@ export default function AdminInventoryPage() {
                   : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
               }`}
             >
-              All Products ({products.length})
+              All Products ({products.length.toLocaleString('en-PH')})
             </button>
 
             <button
@@ -636,11 +647,27 @@ export default function AdminInventoryPage() {
                   : 'bg-white text-red-700 border-red-200 hover:bg-red-50'
               }`}
             >
-              <span>⚡ Expiring Soon / Clearance Deals</span>
+              <span>⚡ Expiring Soon (&lt;7 Days)</span>
               <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
                 statusFilter === 'near_expiry' ? 'bg-white/20 text-white' : 'bg-red-100 text-red-800'
               }`}>
-                {metrics.nearExpiryProductsCount}
+                {metrics.nearExpiryProductsCount.toLocaleString('en-PH')}
+              </span>
+            </button>
+
+            <button
+              onClick={() => setStatusFilter('expired')}
+              className={`px-3 py-1.5 rounded-xl border transition-colors cursor-pointer flex items-center gap-1.5 ${
+                statusFilter === 'expired'
+                  ? 'bg-rose-700 text-white border-rose-700 shadow-xs'
+                  : 'bg-white text-rose-800 border-rose-200 hover:bg-rose-50'
+              }`}
+            >
+              <span>🚫 Expired Items</span>
+              <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+                statusFilter === 'expired' ? 'bg-white/20 text-white' : 'bg-rose-100 text-rose-800'
+              }`}>
+                {(metrics.expiredProductsCount ?? products.filter((p) => p.isExpired).length).toLocaleString('en-PH')}
               </span>
             </button>
 
@@ -652,23 +679,28 @@ export default function AdminInventoryPage() {
                   : 'bg-white text-amber-700 border-amber-200 hover:bg-amber-50'
               }`}
             >
-              <span>Low Stock (≤ 10)</span>
+              <span>⚠️ Low Stock (1–10 items)</span>
               <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
                 statusFilter === 'low_stock' ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-800'
               }`}>
-                {metrics.lowStockCount}
+                {(metrics.lowStockCount ?? products.filter((p) => p.totalStock > 0 && p.totalStock <= 10).length).toLocaleString('en-PH')}
               </span>
             </button>
 
             <button
               onClick={() => setStatusFilter('out_of_stock')}
-              className={`px-3 py-1.5 rounded-xl border transition-colors cursor-pointer ${
+              className={`px-3 py-1.5 rounded-xl border transition-colors cursor-pointer flex items-center gap-1.5 ${
                 statusFilter === 'out_of_stock'
-                  ? 'bg-gray-700 text-white border-gray-700'
-                  : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                  ? 'bg-gray-800 text-white border-gray-800 shadow-xs'
+                  : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
               }`}
             >
-              Out of Stock (Sold Out)
+              <span>❌ Out of Stock (0 items)</span>
+              <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+                statusFilter === 'out_of_stock' ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-800'
+              }`}>
+                {(metrics.outOfStockCount ?? products.filter((p) => p.totalStock === 0).length).toLocaleString('en-PH')}
+              </span>
             </button>
           </div>
 
@@ -802,29 +834,41 @@ export default function AdminInventoryPage() {
 
                             <td className="px-4 py-4">
                               <div className="space-y-1">
-                                {product.hasNearExpiry && (
-                                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-red-100 text-red-800 border border-red-200">
-                                    ⚡ Clearance ({Number(product.nearExpiryUnits).toLocaleString('en-PH')} items &lt;7d)
-                                  </span>
-                                )}
+                                {product.isExpired ? (
+                                  <div>
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-800 border border-rose-200">
+                                      🚫 Expired (0 in stock)
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <>
+                                    {product.hasNearExpiry && product.totalStock > 0 && (
+                                      <div>
+                                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-red-100 text-red-800 border border-red-200">
+                                          ⚡ Clearance ({Number(product.nearExpiryUnits).toLocaleString('en-PH')} items &lt;7d)
+                                        </span>
+                                      </div>
+                                    )}
 
-                                <div>
-                                  {product.healthStatus === 'healthy' && !product.hasNearExpiry && (
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                      In Stock ({Number(product.totalStock).toLocaleString('en-PH')})
-                                    </span>
-                                  )}
-                                  {product.healthStatus === 'low_stock' && (
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                                      Low Stock ({Number(product.totalStock).toLocaleString('en-PH')} left)
-                                    </span>
-                                  )}
-                                  {product.healthStatus === 'out_of_stock' && (
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-50 text-red-700 border border-red-200">
-                                      Out of Stock (Sold Out)
-                                    </span>
-                                  )}
-                                </div>
+                                    <div>
+                                      {product.healthStatus === 'healthy' && !product.hasNearExpiry && (
+                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                          In Stock ({Number(product.totalStock).toLocaleString('en-PH')})
+                                        </span>
+                                      )}
+                                      {product.healthStatus === 'low_stock' && (
+                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                          Low Stock ({Number(product.totalStock).toLocaleString('en-PH')} left)
+                                        </span>
+                                      )}
+                                      {product.healthStatus === 'out_of_stock' && (
+                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 text-gray-800 border border-gray-200">
+                                          Out of Stock (Sold Out)
+                                        </span>
+                                      )}
+                                    </div>
+                                  </>
+                                )}
                               </div>
                             </td>
 

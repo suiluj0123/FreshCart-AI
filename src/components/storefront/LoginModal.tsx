@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/auth/client'
 import Button from '@/components/ui/Button'
@@ -9,10 +8,10 @@ import Button from '@/components/ui/Button'
 interface LoginModalProps {
   isOpen: boolean
   onClose: () => void
-  initialMode?: 'login' | 'register'
+  initialMode?: 'login' | 'register' | 'forgot'
 }
 
-type ModalMode = 'login' | 'register'
+type ModalMode = 'login' | 'register' | 'forgot'
 
 export default function LoginModal({ isOpen, onClose, initialMode = 'login' }: LoginModalProps) {
   const router = useRouter()
@@ -26,6 +25,7 @@ export default function LoginModal({ isOpen, onClose, initialMode = 'login' }: L
       setMode(initialMode)
     }
   }, [isOpen, initialMode])
+
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -36,6 +36,51 @@ export default function LoginModal({ isOpen, onClose, initialMode = 'login' }: L
   const [success, setSuccess] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
+
+  // Rate Limiting & Lockout State (4 attempts -> 10 mins lockout)
+  const [isLocked, setIsLocked] = useState(false)
+  const [lockoutRemaining, setLockoutRemaining] = useState(0)
+  const [remainingAttempts, setRemainingAttempts] = useState<number | null>(null)
+
+  // Lockout Countdown Timer
+  useEffect(() => {
+    let timer: NodeJS.Timeout
+    if (isLocked && lockoutRemaining > 0) {
+      timer = setInterval(() => {
+        setLockoutRemaining((prev) => {
+          if (prev <= 1) {
+            setIsLocked(false)
+            setRemainingAttempts(4)
+            return 0
+          }
+          return prev - 1
+        })
+      }, 1000)
+    }
+    return () => clearInterval(timer)
+  }, [isLocked, lockoutRemaining])
+
+  // Check Rate Limit when email changes or modal opens
+  const checkRateLimit = async (emailToCheck: string) => {
+    if (!emailToCheck || !emailToCheck.includes('@')) return
+    try {
+      const res = await fetch(`/api/auth/rate-limit?email=${encodeURIComponent(emailToCheck.trim())}`)
+      const json = await res.json()
+      if (json.isLocked) {
+        setIsLocked(true)
+        setLockoutRemaining(json.remainingSeconds || 600)
+      } else {
+        setIsLocked(false)
+        setRemainingAttempts(json.remainingAttempts ?? 4)
+      }
+    } catch {}
+  }
+
+  useEffect(() => {
+    if (isOpen && email) {
+      checkRateLimit(email)
+    }
+  }, [isOpen, email])
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -82,9 +127,21 @@ export default function LoginModal({ isOpen, onClose, initialMode = 'login' }: L
     return null
   }
 
+  const formatLockoutTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins}m ${secs < 10 ? '0' : ''}${secs}s`
+  }
+
+  // Handle Login
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+
+    if (isLocked) {
+      setError(`Account temporarily locked. Please try again in ${formatLockoutTime(lockoutRemaining)} or reset your password.`)
+      return
+    }
 
     const cleanEmail = email.trim()
     if (!cleanEmail) {
@@ -108,8 +165,46 @@ export default function LoginModal({ isOpen, onClose, initialMode = 'login' }: L
       })
 
       if (err) {
-        if (err.message.toLowerCase().includes('invalid login credentials')) {
-          setError('Incorrect email or password. Please verify your credentials.')
+        // Record failed attempt in rate limiter API
+        let lockedNow = false
+        let remTime = 0
+        let remAttempts = 3
+
+        try {
+          const rateRes = await fetch('/api/auth/rate-limit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'failed', email: cleanEmail }),
+          })
+          const rateJson = await rateRes.json()
+          lockedNow = rateJson.isLocked
+          remTime = rateJson.remainingSeconds || 600
+          remAttempts = rateJson.remainingAttempts ?? 0
+
+          if (lockedNow) {
+            setIsLocked(true)
+            setLockoutRemaining(remTime)
+          } else {
+            setRemainingAttempts(remAttempts)
+          }
+        } catch {}
+
+        // Record failed attempt in audit log
+        fetch('/api/auth/log-event', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: cleanEmail,
+            eventType: lockedNow ? 'Account Locked (4 Failed Attempts)' : 'Failed Login Attempt',
+            status: lockedNow ? 'danger' : 'warning',
+            notes: err.message,
+          }),
+        }).catch(() => {})
+
+        if (lockedNow) {
+          setError(`Account locked due to 4 consecutive failed attempts. Please try again in ${formatLockoutTime(remTime)} or reset your password.`)
+        } else if (err.message.toLowerCase().includes('invalid login credentials')) {
+          setError(`Incorrect email or password. ${remAttempts} attempt${remAttempts === 1 ? '' : 's'} remaining before 10-minute lockout.`)
         } else if (err.message.toLowerCase().includes('email not confirmed')) {
           setError('Please confirm your email address via the link sent to your inbox.')
         } else {
@@ -118,7 +213,15 @@ export default function LoginModal({ isOpen, onClose, initialMode = 'login' }: L
         return
       }
 
-      // Role-based automatic redirection: Admins go straight to /admin
+      // Reset rate limit on success
+      fetch('/api/auth/rate-limit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'success', email: cleanEmail }),
+      }).catch(() => {})
+
+      // Determine user role
+      let userRole = 'customer'
       if (authData?.user) {
         const { data: profile } = await supabase
           .from('User')
@@ -126,13 +229,25 @@ export default function LoginModal({ isOpen, onClose, initialMode = 'login' }: L
           .or(`authId.eq.${authData.user.id},email.eq.${cleanEmail}`)
           .maybeSingle()
 
-        const userRole = profile?.role || (authData.user.user_metadata?.role as string) || 'customer'
+        userRole = profile?.role || (authData.user.user_metadata?.role as string) || 'customer'
+      }
 
-        if (userRole === 'admin') {
-          onClose()
-          window.location.href = '/admin'
-          return
-        }
+      // Record successful login in audit log
+      fetch('/api/auth/log-event', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: cleanEmail,
+          eventType: 'Successful Login',
+          status: 'success',
+          role: userRole,
+        }),
+      }).catch(() => {})
+
+      if (userRole === 'admin' || userRole === 'system_admin') {
+        onClose()
+        window.location.href = '/admin'
+        return
       }
 
       router.refresh()
@@ -144,6 +259,7 @@ export default function LoginModal({ isOpen, onClose, initialMode = 'login' }: L
     }
   }
 
+  // Handle Register
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
@@ -174,22 +290,22 @@ export default function LoginModal({ isOpen, onClose, initialMode = 'login' }: L
       return
     }
 
-    if (!confirmPassword) {
-      setError('Please confirm your password.')
-      return
-    }
-
     if (password !== confirmPassword) {
-      setError('Passwords do not match. Please re-type your confirm password.')
+      setError('Passwords do not match. Please re-enter.')
       return
     }
 
     setLoading(true)
     try {
-      const { error: err } = await supabase.auth.signUp({
+      const { data, error: err } = await supabase.auth.signUp({
         email: cleanEmail,
         password,
-        options: { data: { name: cleanName } },
+        options: {
+          data: {
+            name: cleanName,
+            role: 'customer',
+          },
+        },
       })
 
       if (err) {
@@ -197,33 +313,103 @@ export default function LoginModal({ isOpen, onClose, initialMode = 'login' }: L
         return
       }
 
-      setSuccess('Account created successfully!')
-      setMode('login')
-      setPassword('')
-      setConfirmPassword('')
-      setTimeout(() => setSuccess(null), 3000)
+      if (data.user) {
+        try {
+          await supabase.from('User').insert({
+            id: data.user.id,
+            authId: data.user.id,
+            email: cleanEmail,
+            name: cleanName,
+            role: 'customer',
+          })
+        } catch {}
+
+        fetch('/api/auth/log-event', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: cleanEmail,
+            userName: cleanName,
+            eventType: 'User Registration',
+            status: 'success',
+            role: 'customer',
+          }),
+        }).catch(() => {})
+      }
+
+      setSuccess('Account created successfully! Check your inbox for confirmation.')
+      setTimeout(() => {
+        onClose()
+        router.refresh()
+      }, 1500)
     } catch {
-      setError('An unexpected error occurred during account creation.')
+      setError('Failed to create account. Please try again.')
     } finally {
       setLoading(false)
     }
   }
 
-  const handleGoogleSignIn = async () => {
+  // Handle Forgot Password
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault()
     setError(null)
+    setSuccess(null)
+
+    const cleanEmail = email.trim()
+    if (!cleanEmail) {
+      setError('Please enter your registered email address.')
+      return
+    }
+    if (!validateEmail(cleanEmail)) {
+      setError('Please enter a valid email address.')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const redirectUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/reset-password`
+      const { error: resetErr } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
+        redirectTo: redirectUrl,
+      })
+
+      if (resetErr) {
+        setError(resetErr.message)
+        return
+      }
+
+      // Log forgot password request
+      fetch('/api/auth/log-event', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: cleanEmail,
+          eventType: 'Password Reset Requested',
+          status: 'info',
+        }),
+      }).catch(() => {})
+
+      setSuccess('Password reset link sent! Please check your email inbox and follow the instructions.')
+    } catch {
+      setError('Failed to send reset link. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Google OAuth
+  const handleGoogleLogin = async () => {
     setGoogleLoading(true)
+    setError(null)
     try {
       const { error: err } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : undefined,
+          redirectTo: `${window.location.origin}/auth/callback`,
         },
       })
-      if (err) {
-        setError(err.message)
-      }
+      if (err) setError(err.message)
     } catch {
-      setError('Failed to initialize Google Sign In.')
+      setError('Google Sign-In failed. Please try again.')
     } finally {
       setGoogleLoading(false)
     }
@@ -233,49 +419,60 @@ export default function LoginModal({ isOpen, onClose, initialMode = 'login' }: L
 
   return (
     <>
-      {/* Scrim / Backdrop */}
+      {/* ── Scrim / Backdrop ── */}
       <div
-        className="fixed inset-0 z-[9998] bg-black/60 backdrop-blur-sm transition-opacity"
+        className="fixed inset-0 z-[9998] bg-black/60 backdrop-blur-xs transition-opacity animate-fadeIn"
         onClick={onClose}
         aria-hidden="true"
       />
 
-      {/* Slide-Over Right Panel */}
+      {/* ── Slide-Over Right Panel ── */}
       <div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
         style={{ backgroundColor: '#ffffff' }}
-        className="fixed right-0 top-0 bottom-0 z-[9999] flex h-screen w-full max-w-md flex-col bg-white shadow-2xl border-l border-gray-100"
+        className="fixed right-0 top-0 bottom-0 z-[9999] flex h-screen w-full max-w-md flex-col bg-white shadow-2xl border-l border-gray-100 animate-slideLeft"
       >
         {/* ── Header ── */}
-        <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
-          <div className="flex items-center gap-2.5">
-            {/* Logo icon box */}
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-600 shadow-sm">
-              <svg
-                className="h-5 w-5 text-white"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
+        <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4 bg-white">
+          {/* Mode Switcher Tabs */}
+          {mode !== 'forgot' ? (
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => switchMode('login')}
+                className={`text-sm font-black transition-colors cursor-pointer ${
+                  mode === 'login' ? 'text-gray-900 border-b-2 border-emerald-600 pb-1' : 'text-gray-400 hover:text-gray-700 pb-1'
+                }`}
               >
-                <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
-                <line x1="3" y1="6" x2="21" y2="6" />
-                <path d="M16 10a4 4 0 0 1-8 0" />
-              </svg>
+                Sign In
+              </button>
+              <button
+                type="button"
+                onClick={() => switchMode('register')}
+                className={`text-sm font-black transition-colors cursor-pointer ${
+                  mode === 'register' ? 'text-gray-900 border-b-2 border-emerald-600 pb-1' : 'text-gray-400 hover:text-gray-700 pb-1'
+                }`}
+              >
+                Create Account
+              </button>
             </div>
-            <span className="text-lg font-bold tracking-tight">
-              <span className="text-gray-900">FreshCart</span>
-              <span className="text-emerald-600"> AI</span>
-            </span>
-          </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => switchMode('login')}
+              className="text-xs font-bold text-emerald-700 hover:underline flex items-center gap-1 cursor-pointer"
+            >
+              ← Back to Sign In
+            </button>
+          )}
+
+          {/* Close Icon */}
           <button
             onClick={onClose}
-            className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
-            aria-label="Close"
+            className="rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors cursor-pointer"
+            aria-label="Close modal"
           >
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -286,204 +483,256 @@ export default function LoginModal({ isOpen, onClose, initialMode = 'login' }: L
         {/* ── Body ── */}
         <div className="flex-1 overflow-y-auto px-6 py-7 bg-white" style={{ backgroundColor: '#ffffff' }}>
           {/* Title */}
-          <div className="mb-5">
-            <h2 className="text-2xl font-bold text-gray-900">
-              {mode === 'login' ? 'Welcome Back!' : 'Create Account'}
+          <div className="mb-6">
+            <h2 className="text-2xl font-black text-gray-900 tracking-tight">
+              {mode === 'login' && 'Welcome Back'}
+              {mode === 'register' && 'Join FreshCart'}
+              {mode === 'forgot' && 'Reset Password'}
             </h2>
-            <p className="mt-1 text-sm text-gray-500">
-              {mode === 'login'
-                ? 'Sign in to access your meal plans and orders.'
-                : 'Join FreshCart AI for AI-powered grocery shopping.'}
+            <p className="text-xs text-gray-500 mt-1">
+              {mode === 'login' && 'Sign in to access your orders, grocery cart, and saved details'}
+              {mode === 'register' && 'Fast grocery delivery, fresh produce & member discounts'}
+              {mode === 'forgot' && 'Enter your email to receive a secure password reset link'}
             </p>
           </div>
 
-          {/* Mode tabs */}
-          <div className="mb-5 flex rounded-xl bg-gray-100 p-1">
-            {(['login', 'register'] as ModalMode[]).map((m) => (
-              <button
-                key={m}
-                onClick={() => switchMode(m)}
-                className={"flex-1 rounded-lg py-2 text-sm font-semibold capitalize transition-colors " +
-                  (mode === m ? 'bg-white text-emerald-700 shadow' : 'text-gray-500 hover:text-gray-700')}
-              >
-                {m === 'login' ? 'Sign In' : 'Register'}
-              </button>
-            ))}
-          </div>
+          {/* LOCKOUT WARNING BANNER */}
+          {isLocked && (
+            <div className="mb-5 p-3.5 rounded-2xl bg-red-50 border border-red-200 text-red-900 text-xs font-bold space-y-1 animate-fadeIn">
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-red-700 font-black">
+                  🔒 Account Locked (4 Failed Attempts)
+                </span>
+                <span className="font-mono text-[11px] bg-red-200/80 px-2 py-0.5 rounded-md">
+                  {formatLockoutTime(lockoutRemaining)}
+                </span>
+              </div>
+              <p className="text-[11px] text-red-700 font-normal">
+                For security, login is locked for 10 minutes. You can also use the{' '}
+                <button
+                  type="button"
+                  onClick={() => setMode('forgot')}
+                  className="underline font-bold text-red-900 hover:text-red-950 cursor-pointer"
+                >
+                  Forgot Password
+                </button>{' '}
+                option.
+              </p>
+            </div>
+          )}
 
-          {/* Alerts */}
-          {error && (
-            <div className="mb-4 flex items-start gap-2 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
-              <svg className="mt-0.5 h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
+          {/* FEEDBACK BANNERS */}
+          {error && !isLocked && (
+            <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-bold animate-fadeIn">
               {error}
             </div>
           )}
+
           {success && (
-            <div className="mb-4 flex items-start gap-2 rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-700">
-              <svg className="mt-0.5 h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+            <div className="mb-4 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold animate-fadeIn">
               {success}
             </div>
           )}
 
-          {/* Form */}
-          <form onSubmit={mode === 'login' ? handleLogin : handleRegister} className="space-y-4">
-            {/* Full Name (Register mode only, NO placeholder) */}
-            {mode === 'register' && (
+          {/* FORGOT PASSWORD FORM */}
+          {mode === 'forgot' && (
+            <form onSubmit={handleForgotPassword} className="space-y-4">
               <div>
-                <label htmlFor="modal-name" className="block text-sm font-semibold text-gray-700 mb-1">
-                  Full Name <span className="text-red-500">*</span>
+                <label className="block text-xs font-bold text-gray-700 mb-1">
+                  Email Address
                 </label>
                 <input
-                  id="modal-name"
-                  type="text"
+                  type="email"
                   required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-xs text-gray-900 focus:border-emerald-500 focus:outline-none"
                 />
               </div>
-            )}
 
-            {/* Email Address (NO placeholder) */}
-            <div>
-              <label htmlFor="modal-email" className="block text-sm font-semibold text-gray-700 mb-1">
-                Email Address <span className="text-red-500">*</span>
-              </label>
-              <input
-                id="modal-email"
-                type="email"
-                autoComplete="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200"
-              />
-            </div>
+              <Button
+                type="submit"
+                disabled={loading}
+                className="w-full py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow-xs"
+              >
+                {loading ? 'Sending Reset Link...' : 'Send Reset Link ➔'}
+              </Button>
 
-            {/* Password */}
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label htmlFor="modal-password" className="block text-sm font-semibold text-gray-700">
-                  Password <span className="text-red-500">*</span>
-                </label>
-                {mode === 'login' && (
-                  <Link href="/forgot-password" className="text-xs font-medium text-emerald-600 hover:text-emerald-700">
-                    Forgot password?
-                  </Link>
-                )}
-              </div>
-              <div className="relative">
-                <input
-                  id="modal-password"
-                  type={showPassword ? 'text' : 'password'}
-                  autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter password"
-                  className="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 pr-16 text-sm placeholder-gray-400 text-gray-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200"
-                />
+              <div className="text-center pt-2">
                 <button
                   type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-emerald-600 hover:text-emerald-700"
+                  onClick={() => switchMode('login')}
+                  className="text-xs font-bold text-emerald-700 hover:underline cursor-pointer"
                 >
-                  {showPassword ? 'Hide' : 'Show'}
+                  ← Back to Sign In
                 </button>
               </div>
+            </form>
+          )}
 
-              {/* Password requirement hint in register mode */}
+          {/* LOGIN / REGISTER FORM */}
+          {mode !== 'forgot' && (
+            <form onSubmit={mode === 'login' ? handleLogin : handleRegister} className="space-y-4">
               {mode === 'register' && (
-                <p className="mt-1.5 text-xs text-gray-500 leading-normal">
-                  Must be at least 8 characters with 1 capital letter, 1 number, and 1 special character.
-                </p>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">
+                    Full Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-xs text-gray-900 focus:border-emerald-500 focus:outline-none"
+                  />
+                </div>
               )}
-            </div>
 
-            {/* Confirm Password (Register mode only) */}
-            {mode === 'register' && (
               <div>
-                <label htmlFor="modal-confirm-password" className="block text-sm font-semibold text-gray-700 mb-1">
-                  Confirm Password <span className="text-red-500">*</span>
+                <label className="block text-xs font-bold text-gray-700 mb-1">
+                  Email Address <span className="text-red-500">*</span>
                 </label>
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-xs text-gray-900 focus:border-emerald-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-gray-700">
+                    Password <span className="text-red-500">*</span>
+                  </label>
+                  {mode === 'login' && (
+                    <button
+                      type="button"
+                      onClick={() => switchMode('forgot')}
+                      className="text-[11px] font-bold text-emerald-700 hover:underline cursor-pointer"
+                    >
+                      Forgot password?
+                    </button>
+                  )}
+                </div>
                 <div className="relative">
                   <input
-                    id="modal-confirm-password"
-                    type={showConfirmPassword ? 'text' : 'password'}
-                    autoComplete="new-password"
+                    type={showPassword ? 'text' : 'password'}
                     required
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Confirm password"
-                    className="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 pr-16 text-sm placeholder-gray-400 text-gray-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-xs text-gray-900 focus:border-emerald-500 focus:outline-none pr-10"
                   />
                   <button
                     type="button"
-                    onClick={() => setShowConfirmPassword((v) => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-emerald-600 hover:text-emerald-700"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 text-xs font-bold"
                   >
-                    {showConfirmPassword ? 'Hide' : 'Show'}
+                    {showPassword ? 'Hide' : 'Show'}
                   </button>
                 </div>
               </div>
-            )}
 
-            <Button type="submit" variant="primary" size="lg" disabled={loading} className="w-full rounded-xl mt-2 font-bold shadow-md">
-              {loading
-                ? (mode === 'login' ? 'Signing in...' : 'Creating account...')
-                : (mode === 'login' ? 'Sign In' : 'Create Account')}
-            </Button>
-          </form>
+              {mode === 'register' && (
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">
+                    Confirm Password <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      required
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-xs text-gray-900 focus:border-emerald-500 focus:outline-none pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 text-xs font-bold"
+                    >
+                      {showConfirmPassword ? 'Hide' : 'Show'}
+                    </button>
+                  </div>
+                </div>
+              )}
 
-          {/* ── Divider ── */}
-          <div className="relative my-5">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-200" />
+              <Button
+                type="submit"
+                disabled={loading || isLocked}
+                className="w-full py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow-xs disabled:opacity-50"
+              >
+                {loading ? (mode === 'login' ? 'Signing in...' : 'Creating Account...') : isLocked ? `Locked (${formatLockoutTime(lockoutRemaining)})` : mode === 'login' ? 'Sign In' : 'Create Account'}
+              </Button>
+            </form>
+          )}
+
+          {/* ── Social / Alternative Auth ── */}
+          {mode !== 'forgot' && (
+            <div className="mt-6 space-y-4">
+              <div className="relative flex items-center justify-center">
+                <div className="border-t border-gray-200 w-full" />
+                <span className="bg-white px-3 text-[10px] uppercase font-bold text-gray-400 tracking-wider">
+                  Or continue with
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleGoogleLogin}
+                disabled={googleLoading}
+                className="w-full flex items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white py-2 text-xs font-bold text-gray-700 shadow-2xs hover:bg-gray-50 transition-colors cursor-pointer"
+              >
+                <svg className="h-4 w-4" viewBox="0 0 24 24">
+                  <path
+                    fill="#4285F4"
+                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                  />
+                  <path
+                    fill="#EA4335"
+                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                  />
+                </svg>
+                <span>{googleLoading ? 'Connecting...' : 'Google Account'}</span>
+              </button>
+
+              {/* Mode Switcher */}
+              <div className="text-center pt-2 text-xs text-gray-500">
+                {mode === 'login' ? (
+                  <>
+                    Don&apos;t have an account?{' '}
+                    <button
+                      type="button"
+                      onClick={() => switchMode('register')}
+                      className="font-bold text-emerald-700 hover:underline cursor-pointer"
+                    >
+                      Sign Up
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    Already have an account?{' '}
+                    <button
+                      type="button"
+                      onClick={() => switchMode('login')}
+                      className="font-bold text-emerald-700 hover:underline cursor-pointer"
+                    >
+                      Sign In
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
-            <div className="relative flex justify-center">
-              <span className="bg-white px-3 text-xs uppercase tracking-wider text-gray-400">or</span>
-            </div>
-          </div>
-
-          {/* ── Interactive Google Sign-In Button ── */}
-          <button
-            type="button"
-            onClick={handleGoogleSignIn}
-            disabled={googleLoading}
-            className="flex w-full items-center justify-center gap-3 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition-all hover:bg-gray-50 hover:border-gray-400 active:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-70 cursor-pointer"
-          >
-            {/* Google 'G' logo SVG */}
-            <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
-              <path
-                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                fill="#4285F4"
-              />
-              <path
-                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                fill="#34A853"
-              />
-              <path
-                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                fill="#FBBC05"
-              />
-              <path
-                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                fill="#EA4335"
-              />
-            </svg>
-            <span>{googleLoading ? 'Connecting to Google...' : 'Sign in with Google'}</span>
-          </button>
-        </div>
-
-        {/* ── Footer ── */}
-        <div className="border-t border-gray-100 bg-gray-50 px-6 py-4 text-center">
-          <button onClick={onClose} className="text-sm text-gray-500 hover:text-gray-700 transition-colors">
-            Continue as Guest &rarr;
-          </button>
+          )}
         </div>
       </div>
     </>
