@@ -256,25 +256,28 @@ export default async function AdminDashboardPage() {
         <div className="flex items-center gap-2 flex-wrap">
           <Link
             href="/admin/inventory"
-            className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 px-3.5 py-2 text-xs font-bold text-white shadow-xs hover:bg-emerald-800 transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 px-3.5 py-2 text-xs font-bold text-white shadow-xs hover:bg-emerald-800 transition-all cursor-pointer"
           >
-            <span>+ Receive Stock</span>
+            <span className="text-sm font-black leading-none">+</span>
+            <span>Receive Stock</span>
           </Link>
           <Link
             href="/admin/orders"
-            className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-xs font-bold text-gray-700 shadow-xs hover:bg-gray-50 transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 bg-white px-3.5 py-2 text-xs font-bold text-gray-800 shadow-xs hover:bg-gray-50 hover:border-gray-400 transition-all cursor-pointer"
           >
+            <span className="text-sm font-black leading-none text-emerald-600">+</span>
             <span>Orders ({activeOrders.length})</span>
           </Link>
           <Link
             href="/admin/users"
-            className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-xs font-bold text-gray-700 shadow-xs hover:bg-gray-50 transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 bg-white px-3.5 py-2 text-xs font-bold text-gray-800 shadow-xs hover:bg-gray-50 hover:border-gray-400 transition-all cursor-pointer"
           >
+            <span className="text-sm font-black leading-none text-emerald-600">+</span>
             <span>Users ({allUsers.length})</span>
           </Link>
           <Link
             href="/admin/reports"
-            className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3.5 py-2 text-xs font-bold text-emerald-800 shadow-xs hover:bg-emerald-100 transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3.5 py-2 text-xs font-bold text-emerald-800 shadow-xs hover:bg-emerald-100 hover:border-emerald-400 transition-all cursor-pointer"
           >
             <span>Reports Hub ➔</span>
           </Link>
